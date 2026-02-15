@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>SECURE ADMIN // MOBILE</title>
+    <title>Info Base Backend System</title>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -110,6 +110,7 @@
         input:checked + .toggle-display .toggle-state::before { content: "MAINTENANCE: ON"; }
         input:not(:checked) + .toggle-display .toggle-state::before { content: "NORMAL MODE"; }
 
+
         .input-group { position: relative; margin-bottom: 15px; }
         label {
             position: absolute; top: -8px; left: 10px; background: var(--bg);
@@ -126,6 +127,7 @@
             border-color: var(--active); box-shadow: 0 0 10px rgba(0, 240, 255, 0.1); outline: none;
         }
 
+
         .bottom-bar {
             position: fixed; bottom: 0; left: 0; width: 100%;
             padding: 15px 20px calc(15px + var(--safe-bottom));
@@ -140,6 +142,7 @@
         }
         button.btn-primary { background: var(--active); color: #000; }
         button:active { transform: scale(0.98); }
+
 
         #overlay {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -164,7 +167,7 @@
     </div>
 
     <header>
-        <h1>SYS.SECURE_V2</h1>
+        <h1>SYS.BCTD v1.3</h1>
         <div id="led" class="status-light"></div>
     </header>
 
@@ -195,8 +198,8 @@
         <div class="input-group"><label>END TIME</label><input type="datetime-local" id="timeEnd"></div>
 
         <div class="section-label">Announcements</div>
-        <div class="input-group"><label>MSG (CH)</label><textarea id="purposeCH"></textarea></div>
-        <div class="input-group"><label>MSG (EN)</label><textarea id="purposeEG"></textarea></div>
+        <div class="input-group"><label>MSG (CH)</label><textarea id="purposeCH" placeholder="空白將自動填入預設值"></textarea></div>
+        <div class="input-group"><label>MSG (EN)</label><textarea id="purposeEG" placeholder="Leave empty for default message"></textarea></div>
 
     </div>
 
@@ -229,7 +232,7 @@
             } else if(state === 'error') {
                 loader.classList.add('hidden');
                 led.className = 'status-light error';
-                alert('ACCESS DENIED / ERROR: ' + msg);
+                alert('ERROR: ' + msg);
             }
         }
 
@@ -262,14 +265,28 @@
         function saveData() {
             const key = document.getElementById('authKey').value;
             if(!key) {
-                alert('MISSING ACCESS KEY (請輸入金鑰)');
+                alert('MISSING ACCESS KEY');
                 document.getElementById('authKey').focus();
                 return;
             }
-
             localStorage.setItem('sys_access_key', key);
 
-            setStatus('busy', 'AUTHENTICATING & WRITING...');
+            // ==========================================
+            // 自動填充邏輯 (Auto-Fill)
+            // ==========================================
+            const inputCH = document.getElementById('purposeCH');
+            const inputEG = document.getElementById('purposeEG');
+
+            // 如果欄位去掉前後空白後是空的，填入預設值
+            if (!inputCH.value.trim()) {
+                inputCH.value = "維護完成，請重新連線。";
+            }
+            if (!inputEG.value.trim()) {
+                inputEG.value = "Maintenance complete. Please reconnect.";
+            }
+            // ==========================================
+
+            setStatus('busy', 'UPLOADING...');
             
             const payload = {
                 authKey: key,
@@ -280,8 +297,8 @@
                     versionDate: document.getElementById('versionDate').value,
                     timeStart: formatToJson(document.getElementById('timeStart').value),
                     timeEnd: formatToJson(document.getElementById('timeEnd').value),
-                    purposeCH: document.getElementById('purposeCH').value,
-                    purposeEG: document.getElementById('purposeEG').value
+                    purposeCH: inputCH.value,
+                    purposeEG: inputEG.value
                 }
             };
 
