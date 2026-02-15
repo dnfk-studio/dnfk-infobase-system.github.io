@@ -34,6 +34,93 @@
             background-size: 20px 20px;
         }
 
+        .nav-trigger {
+            position: relative;
+            z-index: 200;
+            cursor: pointer;
+            padding: 10px;
+            margin-right: -10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nav-trigger .status-light {
+            transition: 0.3s;
+        }
+        
+        .nav-trigger.active .status-light {
+            background: var(--alert);
+            box-shadow: 0 0 10px var(--alert);
+        }
+
+        .side-menu {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 260px;
+            height: 100vh;
+            background: rgba(5, 5, 5, 0.95);
+            backdrop-filter: blur(15px);
+            border-left: 1px solid var(--line);
+            transform: translateX(100%);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 150;
+            padding-top: 80px;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .side-menu.open {
+            transform: translateX(0);
+        }
+
+        .menu-backdrop {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.5);
+            opacity: 0; pointer-events: none; transition: 0.3s;
+            z-index: 140;
+        }
+        .menu-backdrop.active { opacity: 1; pointer-events: auto; }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 25px;
+            color: var(--dim);
+            text-decoration: none;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 14px;
+            letter-spacing: 1px;
+            transition: 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-link:hover, .nav-link:active {
+            color: var(--active);
+            background: rgba(0, 240, 255, 0.05);
+            padding-left: 35px;
+        }
+
+        .nav-link::before {
+            content: '>';
+            opacity: 0;
+            position: absolute; left: 15px;
+            transition: 0.2s;
+            color: var(--active);
+        }
+        .nav-link:hover::before { opacity: 1; }
+
+        .nav-category {
+            font-size: 10px; color: var(--dim);
+            padding: 20px 25px 5px;
+            opacity: 0.5;
+            margin-top: 10px;
+        }
+
         header {
             position: sticky;
             top: 0;
@@ -61,9 +148,7 @@
         .status-light.error { background: var(--alert); box-shadow: 0 0 8px var(--alert); }
         @keyframes blink { 50% { opacity: 0.5; } }
 
-
         .container { padding: 20px; max-width: 600px; margin: 0 auto; }
-
 
         .section-label {
             font-size: 10px; color: var(--dim); text-transform: uppercase;
@@ -73,7 +158,6 @@
         .section-label::after {
             content: ''; flex: 1; height: 1px; background: var(--line); margin-left: 10px;
         }
-
 
         .auth-zone {
             border: 1px solid var(--alert);
@@ -88,7 +172,6 @@
             letter-spacing: 2px;
         }
         .auth-input:focus { box-shadow: 0 0 10px rgba(255, 42, 109, 0.3) !important; }
-
 
         .maintenance-control {
             position: relative; border: 1px solid var(--line);
@@ -110,7 +193,6 @@
         input:checked + .toggle-display .toggle-state::before { content: "MAINTENANCE: ON"; }
         input:not(:checked) + .toggle-display .toggle-state::before { content: "NORMAL MODE"; }
 
-
         .input-group { position: relative; margin-bottom: 15px; }
         label {
             position: absolute; top: -8px; left: 10px; background: var(--bg);
@@ -127,7 +209,6 @@
             border-color: var(--active); box-shadow: 0 0 10px rgba(0, 240, 255, 0.1); outline: none;
         }
 
-
         .bottom-bar {
             position: fixed; bottom: 0; left: 0; width: 100%;
             padding: 15px 20px calc(15px + var(--safe-bottom));
@@ -142,7 +223,6 @@
         }
         button.btn-primary { background: var(--active); color: #000; }
         button:active { transform: scale(0.98); }
-
 
         #overlay {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -166,9 +246,26 @@
         <div class="loader-text" id="loaderMsg">INITIALIZING SECURE LINK...</div>
     </div>
 
+    <div id="menuBackdrop" class="menu-backdrop" onclick="toggleMenu()"></div>
+
+    <nav id="sideMenu" class="side-menu">
+        <div class="nav-category">SYS.CORE</div>
+        <a href="javascript:void(0)" onclick="toggleMenu()" class="nav-link" style="color: var(--active);">MAINTENANCE</a>
+        <a href="../upload" class="nav-link">DATA UPLOAD</a>
+        
+        <div class="nav-category">CDA.MODULES</div>
+        <a href="../cda-upload" class="nav-link">CDA INGEST</a>
+        <a href="../cda-manage" class="nav-link">CDA MANAGE</a>
+        
+        <div class="nav-category" style="margin-top:auto; border-top: 1px solid var(--line);">SYSTEM</div>
+        <a href="#" class="nav-link" onclick="location.reload()">RELOAD UI</a>
+    </nav>
+
     <header>
         <h1>SYS.BCTD v1.3</h1>
-        <div id="led" class="status-light"></div>
+        <div class="nav-trigger" onclick="toggleMenu()">
+            <div id="led" class="status-light"></div>
+        </div>
     </header>
 
     <div class="container">
@@ -221,6 +318,25 @@
             fetchData();
         };
 
+
+        function toggleMenu() {
+            const menu = document.getElementById('sideMenu');
+            const backdrop = document.getElementById('menuBackdrop');
+            const trigger = document.querySelector('.nav-trigger');
+            
+            const isOpen = menu.classList.contains('open');
+            
+            if (isOpen) {
+                menu.classList.remove('open');
+                backdrop.classList.remove('active');
+                trigger.classList.remove('active');
+            } else {
+                menu.classList.add('open');
+                backdrop.classList.add('active');
+                trigger.classList.add('active');
+            }
+        }
+
         function setStatus(state, msg) {
             loaderMsg.textContent = msg;
             if(state === 'busy') {
@@ -271,20 +387,16 @@
             }
             localStorage.setItem('sys_access_key', key);
 
-            // ==========================================
-            // 自動填充邏輯 (Auto-Fill)
-            // ==========================================
+
             const inputCH = document.getElementById('purposeCH');
             const inputEG = document.getElementById('purposeEG');
 
-            // 如果欄位去掉前後空白後是空的，填入預設值
             if (!inputCH.value.trim()) {
                 inputCH.value = "維護完成，請重新連線。";
             }
             if (!inputEG.value.trim()) {
                 inputEG.value = "Maintenance complete. Please reconnect.";
             }
-            // ==========================================
 
             setStatus('busy', 'UPLOADING...');
             
