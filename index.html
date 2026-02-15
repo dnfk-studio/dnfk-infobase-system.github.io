@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>SECURE ADMIN // MOBILE</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050505;
+            --panel: #0a0a0a;
+            --line: #333;
+            --active: #00f0ff;
+            --alert: #ff2a6d;
+            --text: #e0e0e0;
+            --dim: #666;
+            --safe-top: env(safe-area-inset-top);
+            --safe-bottom: env(safe-area-inset-bottom);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            margin: 0;
+            padding: 0;
+            padding-bottom: calc(80px + var(--safe-bottom));
+            overflow-x: hidden;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        header {
+            position: sticky;
+            top: 0;
+            background: rgba(5, 5, 5, 0.9);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--line);
+            padding: calc(15px + var(--safe-top)) 20px 15px;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 { font-size: 14px; margin: 0; letter-spacing: 2px; color: var(--active); }
+
+        .status-light {
+            width: 8px; height: 8px;
+            background: var(--dim);
+            border-radius: 50%;
+            box-shadow: 0 0 5px var(--dim);
+            transition: 0.3s;
+        }
+        .status-light.on { background: var(--active); box-shadow: 0 0 8px var(--active); }
+        .status-light.busy { background: #ffaa00; box-shadow: 0 0 8px #ffaa00; animation: blink 0.5s infinite; }
+        .status-light.error { background: var(--alert); box-shadow: 0 0 8px var(--alert); }
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+
+        .container { padding: 20px; max-width: 600px; margin: 0 auto; }
+
+
+        .section-label {
+            font-size: 10px; color: var(--dim); text-transform: uppercase;
+            letter-spacing: 1px; margin-top: 25px; margin-bottom: 8px;
+            display: flex; align-items: center;
+        }
+        .section-label::after {
+            content: ''; flex: 1; height: 1px; background: var(--line); margin-left: 10px;
+        }
+
+
+        .auth-zone {
+            border: 1px solid var(--alert);
+            background: rgba(255, 42, 109, 0.05);
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .auth-input {
+            border-color: var(--alert) !important;
+            color: var(--alert) !important;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+        .auth-input:focus { box-shadow: 0 0 10px rgba(255, 42, 109, 0.3) !important; }
+
+
+        .maintenance-control {
+            position: relative; border: 1px solid var(--line);
+            background: var(--panel); margin-bottom: 10px; display: flex; height: 60px;
+        }
+        .maintenance-control input {
+            position: absolute; width: 100%; height: 100%; opacity: 0; z-index: 2; cursor: pointer;
+        }
+        .toggle-display {
+            width: 100%; height: 100%; display: flex; justify-content: space-between;
+            align-items: center; padding: 0 20px; transition: 0.3s;
+        }
+        .toggle-label { font-size: 14px; font-weight: bold; letter-spacing: 1px; }
+        .toggle-state { font-size: 12px; padding: 4px 8px; border: 1px solid var(--dim); color: var(--dim); }
+        
+        input:checked + .toggle-display { background: rgba(255, 42, 109, 0.1); border: 1px solid var(--alert); }
+        input:checked + .toggle-display .toggle-label { color: var(--alert); text-shadow: 0 0 10px rgba(255,42,109,0.5); }
+        input:checked + .toggle-display .toggle-state { border-color: var(--alert); color: var(--alert); }
+        input:checked + .toggle-display .toggle-state::before { content: "MAINTENANCE: ON"; }
+        input:not(:checked) + .toggle-display .toggle-state::before { content: "NORMAL MODE"; }
+
+        .input-group { position: relative; margin-bottom: 15px; }
+        label {
+            position: absolute; top: -8px; left: 10px; background: var(--bg);
+            padding: 0 5px; font-size: 10px; color: var(--active);
+        }
+        input, textarea {
+            width: 100%; background: transparent; border: 1px solid var(--line);
+            color: #fff; padding: 15px; font-family: 'JetBrains Mono', monospace;
+            font-size: 14px; border-radius: 0; transition: 0.3s;
+            -webkit-appearance: none; appearance: none;
+        }
+        textarea { min-height: 100px; line-height: 1.5; }
+        input:focus, textarea:focus {
+            border-color: var(--active); box-shadow: 0 0 10px rgba(0, 240, 255, 0.1); outline: none;
+        }
+
+        .bottom-bar {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            padding: 15px 20px calc(15px + var(--safe-bottom));
+            background: rgba(5, 5, 5, 0.95); border-top: 1px solid var(--line);
+            display: flex; gap: 10px; backdrop-filter: blur(10px); z-index: 100;
+        }
+        button {
+            flex: 1; height: 50px; border: 1px solid var(--active);
+            background: rgba(0, 240, 255, 0.05); color: var(--active);
+            font-family: 'JetBrains Mono', monospace; font-weight: bold; font-size: 14px;
+            cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
+        }
+        button.btn-primary { background: var(--active); color: #000; }
+        button:active { transform: scale(0.98); }
+
+        #overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: var(--bg); z-index: 999; display: flex;
+            flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.5s;
+        }
+        #overlay.hidden { opacity: 0; pointer-events: none; }
+        .loader-text { margin-top: 20px; font-size: 12px; letter-spacing: 3px; animation: blink 1s infinite; }
+        .scan-line {
+            width: 200px; height: 2px; background: var(--active);
+            box-shadow: 0 0 10px var(--active); animation: scan 1.5s infinite ease-in-out;
+        }
+        @keyframes scan { 0% { width: 0; opacity: 0; } 50% { width: 200px; opacity: 1; } 100% { width: 0; opacity: 0; } }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <div class="scan-line"></div>
+        <div class="loader-text" id="loaderMsg">INITIALIZING SECURE LINK...</div>
+    </div>
+
+    <header>
+        <h1>SYS.SECURE_V2</h1>
+        <div id="led" class="status-light"></div>
+    </header>
+
+    <div class="container">
+        
+        <div class="section-label" style="color: var(--alert);">Security Clearance</div>
+        <div class="input-group">
+            <label style="color: var(--alert);">ACCESS KEY</label>
+            <input type="password" id="authKey" class="auth-input" placeholder="ENTER PASSCODE">
+        </div>
+
+        <div class="section-label">System Status</div>
+        <div class="maintenance-control">
+            <input type="checkbox" id="maintenance">
+            <div class="toggle-display">
+                <span class="toggle-label">MAINTENANCE</span>
+                <span class="toggle-state"></span>
+            </div>
+        </div>
+
+        <div class="section-label">Version Control</div>
+        <div class="input-group"><label>VER. CODE</label><input type="text" id="versionCode"></div>
+        <div class="input-group"><label>VER. HIPE</label><input type="text" id="versionHipe"></div>
+        <div class="input-group"><label>VER. DATE</label><input type="number" id="versionDate"></div>
+
+        <div class="section-label">Schedule</div>
+        <div class="input-group"><label>START TIME</label><input type="datetime-local" id="timeStart"></div>
+        <div class="input-group"><label>END TIME</label><input type="datetime-local" id="timeEnd"></div>
+
+        <div class="section-label">Announcements</div>
+        <div class="input-group"><label>MSG (CH)</label><textarea id="purposeCH"></textarea></div>
+        <div class="input-group"><label>MSG (EN)</label><textarea id="purposeEG"></textarea></div>
+
+    </div>
+
+    <div class="bottom-bar">
+        <button onclick="fetchData()">RELOAD</button>
+        <button class="btn-primary" onclick="saveData()">EXECUTE</button>
+    </div>
+
+    <script>
+        const API_URL = 'https://script.google.com/macros/s/AKfycbziUjZFbgQBdLq4H9cb2e0goxmPgLHPm_Fl2LiA9lg7POtvttG8T0_EIKNmsngaad2c/exec'; 
+
+        const loader = document.getElementById('overlay');
+        const loaderMsg = document.getElementById('loaderMsg');
+        const led = document.getElementById('led');
+
+        window.onload = () => {
+            const savedKey = localStorage.getItem('sys_access_key');
+            if(savedKey) document.getElementById('authKey').value = savedKey;
+            fetchData();
+        };
+
+        function setStatus(state, msg) {
+            loaderMsg.textContent = msg;
+            if(state === 'busy') {
+                loader.classList.remove('hidden');
+                led.className = 'status-light busy';
+            } else if(state === 'ready') {
+                loader.classList.add('hidden');
+                led.className = 'status-light on';
+            } else if(state === 'error') {
+                loader.classList.add('hidden');
+                led.className = 'status-light error';
+                alert('ACCESS DENIED / ERROR: ' + msg);
+            }
+        }
+
+        function formatToInput(dateStr) { return dateStr ? dateStr.replace(/\//g, '-').replace(' ', 'T') : ''; }
+        function formatToJson(dateStr) { return dateStr ? dateStr.replace(/-/g, '/').replace('T', ' ') : ''; }
+
+        function fetchData() {
+            setStatus('busy', 'DOWNLOADING...');
+            fetch(API_URL)
+            .then(res => res.json())
+            .then(json => {
+                if (json.status === 'success') {
+                    const data = json.data;
+                    document.getElementById('maintenance').checked = data.maintenance;
+                    document.getElementById('versionCode').value = data.versionCode;
+                    document.getElementById('versionHipe').value = data.versionHipe;
+                    document.getElementById('versionDate').value = data.versionDate;
+                    document.getElementById('timeStart').value = formatToInput(data.timeStart);
+                    document.getElementById('timeEnd').value = formatToInput(data.timeEnd);
+                    document.getElementById('purposeCH').value = data.purposeCH;
+                    document.getElementById('purposeEG').value = data.purposeEG;
+                    setStatus('ready', '');
+                } else {
+                    setStatus('error', json.error);
+                }
+            })
+            .catch(err => setStatus('error', err));
+        }
+
+        function saveData() {
+            const key = document.getElementById('authKey').value;
+            if(!key) {
+                alert('MISSING ACCESS KEY (請輸入金鑰)');
+                document.getElementById('authKey').focus();
+                return;
+            }
+
+            localStorage.setItem('sys_access_key', key);
+
+            setStatus('busy', 'AUTHENTICATING & WRITING...');
+            
+            const payload = {
+                authKey: key,
+                data: {
+                    maintenance: document.getElementById('maintenance').checked,
+                    versionCode: document.getElementById('versionCode').value,
+                    versionHipe: document.getElementById('versionHipe').value,
+                    versionDate: document.getElementById('versionDate').value,
+                    timeStart: formatToJson(document.getElementById('timeStart').value),
+                    timeEnd: formatToJson(document.getElementById('timeEnd').value),
+                    purposeCH: document.getElementById('purposeCH').value,
+                    purposeEG: document.getElementById('purposeEG').value
+                }
+            };
+
+            fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(json => {
+                if (json.status === 'success') {
+                    setStatus('ready', '');
+                    document.body.style.background = "#0a1a1a";
+                    setTimeout(() => document.body.style.background = "#050505", 200);
+                } else {
+                    setStatus('error', json.error);
+                }
+            })
+            .catch(err => setStatus('error', err));
+        }
+    </script>
+</body>
+</html>
