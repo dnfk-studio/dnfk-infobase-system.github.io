@@ -187,7 +187,7 @@
         }
 
         function loadData() {
-            }
+
 
             document.getElementById('loader').style.display = 'flex';
             // Mock Fetch for demo - Replace with real fetch
@@ -485,6 +485,7 @@ function saveData(skipSync) {
                 doc.title = document.getElementById('g_title').value;
                 doc.category = [String(document.getElementById('g_category').value || '').trim()].filter(Boolean);
                 doc.tags = String(document.getElementById('g_tags').value || '').split(',').map(s=>s.trim()).filter(Boolean);
+                }
             }
 
             const payload = {
