@@ -457,19 +457,30 @@
 
             document.getElementById('loader').style.display = 'flex';
             
+            
             fetch(API_URL, {
                 method: 'POST',
                 credentials: 'include',
                 headers: {'Content-Type':'application/json'},
                 body: JSON.stringify(payload)
             })
-            .then(res => res.json())
-            .then(json => {
+            .then(async res => {
+                const json = await res.json().catch(()=>({status:'error', message:'INVALID_JSON'}));
+                if (!res.ok || json.status !== 'success') {
+                    throw new Error(json.message || 'SAVE_FAILED');
+                }
+                return json;
+            })
+            .then(_json => {
                 alert("SAVED SUCCESSFULLY. Cloud timestamp applied.");
                 document.getElementById('loader').style.display = 'none';
                 loadData(); // Reload to get server timestamps
             })
-            .catch(e => {
+            .catch(err => {
+                document.getElementById('loader').style.display = 'none';
+                alert("SAVE FAILED: " + err);
+            });
+.catch(e => {
                 alert("SAVE FAILED: " + e);
                 document.getElementById('loader').style.display = 'none';
             });

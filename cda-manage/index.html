@@ -176,12 +176,17 @@
     <script>
         const API_URL = '/api';
 
-        let cdaProject = { tasks: [], calendar: [] };
+        let cdaProject = { tasks: [], events: [] };
         let reports = [];
         let activeTab = 'tasks';
         let currentEditId = null;
 
-        const CATEGORIES = ["行政","科技","資訊","企劃","藝術","音樂","雜項"];
+        function getCategories_(){
+            const set = new Set();
+            (cdaProject.tasks||[]).forEach(t=> t&&t.category&&set.add(String(t.category)));
+            (cdaProject.events||[]).forEach(e=> e&&e.category&&set.add(String(e.category)));
+            return Array.from(set).sort((a,b)=>a.localeCompare(b,'zh-Hant'));
+        }
 
         window.onload = function() {
             hydrateCategoryFilter();
@@ -190,7 +195,7 @@
 
         function hydrateCategoryFilter(){
             const sel = document.getElementById('filterCat');
-            CATEGORIES.forEach(c=>{
+            getCategories_().forEach(c=>{
                 const opt = document.createElement('option');
                 opt.value = c;
                 opt.innerText = c;
@@ -212,15 +217,15 @@
         async function fetchAll() {
             const r = await fetch(API_URL);
             const json = await r.json();
-            cdaProject = json?.data?.cdaProject || { tasks: [], calendar: [] };
-            if(!cdaProject.calendar) cdaProject.calendar = [];
-            reports = json?.data?.cdaReport?.reports || [];
+            cdaProject = json?.data?.cdaProject || { tasks: [], events: [] };
+            if(!cdaProject.events) cdaProject.events = [];
+            reports = json?.data?.reports || [];
             renderAll();
         }
 
         function renderAll(){
             renderTasks(cdaProject.tasks);
-            renderCalendar(cdaProject.calendar);
+            renderCalendar(cdaProject.events);
             renderReports(reports);
             applyFilters();
         }
@@ -318,7 +323,7 @@
             }
 
             if(activeTab === 'calendar'){
-                let list = [...(cdaProject.calendar||[])];
+                let list = [...(cdaProject.events||[])];
                 if(q){
                     list = list.filter(e => JSON.stringify(e).toLowerCase().includes(q));
                 }
@@ -387,7 +392,7 @@
                 <button class="btn btn-save" onclick="saveChanges()">COMMIT CHANGES</button>
             `;
 
-            let catOptions = CATEGORIES.map(c => `<option value="${escapeHtml(c)}" ${task.category===c?'selected':''}>${escapeHtml(c)}</option>`).join('');
+            let catOptions = getCategories_().map(c => `<option value="${escapeHtml(c)}" ${task.category===c?'selected':''}>${escapeHtml(c)}</option>`).join('');
 
             container.innerHTML = `
                 <div class="input-group"><label>ID</label><input type="text" id="e_id" value="${escapeAttr(task.id)}"></div>
@@ -426,7 +431,7 @@
                 <button class="btn btn-save" onclick="saveChanges()">COMMIT CHANGES</button>
             `;
 
-            let catOptions = CATEGORIES.map(c => `<option value="${escapeHtml(c)}" ${evt.category===c?'selected':''}>${escapeHtml(c)}</option>`).join('');
+            let catOptions = getCategories_().map(c => `<option value="${escapeHtml(c)}" ${evt.category===c?'selected':''}>${escapeHtml(c)}</option>`).join('');
 
             container.innerHTML = `
                 <div class="input-group"><label>ID</label><input type="text" id="e_id" value="${escapeAttr(evt.id)}"></div>
@@ -554,7 +559,7 @@
                     t.relatedLinks = document.getElementById('e_links').value.split(',').map(s=>s.trim()).filter(Boolean);
                 }
             } else {
-                let e = (cdaProject.calendar||[]).find(x => x.id === currentEditId);
+                let e = (cdaProject.events||[]).find(x => x.id === currentEditId);
                 if(e) {
                     e.id = document.getElementById('e_id').value;
                     e.title = document.getElementById('e_title').value;
