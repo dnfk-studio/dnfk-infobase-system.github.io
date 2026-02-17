@@ -56,7 +56,7 @@
         .btn-add-version { background: var(--active); color: #000; border: none; padding: 5px 10px; font-size: 12px; cursor: pointer; margin-left: auto; font-weight: bold; }
 
         /* PDF Preview */
-        .pdf-preview { width: 100%; height: 200px; background: #000; border: 1px dashed var(--dim); display: flex; align-items: center; justify-content: center; color: var(--dim); font-size: 12px; margin-top: 10px; }
+        .pdf-preview { width: 100%; height: 60vh; min-height: 420px; max-height: 720px; background: #000; border: 1px dashed var(--dim); display: flex; align-items: center; justify-content: center; color: var(--dim); font-size: 12px; margin-top: 10px; }
 
         /* Actions */
         .action-bar { margin-top: auto; padding-top: 20px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 10px; }
@@ -82,14 +82,6 @@
                 <div style="display:flex; gap:8px; margin-top:10px;">
                     <select id="docFilterCat" onchange="renderList()" style="flex:1; background:#000; border:1px solid var(--dim); color: var(--active); padding:8px; font-family:inherit;">
                         <option value="">ALL CATEGORIES</option>
-                        <option value="行政">行政</option>
-                        <option value="科技">科技</option>
-                        <option value="資訊">資訊</option>
-                        <option value="企劃">企劃</option>
-                        <option value="藝術">藝術</option>
-                        <option value="音樂">音樂</option>
-                        <option value="校園偵探社">校園偵探社</option>
-                        <option value="雜項">雜項</option>
                     </select>
                     <select id="docSort" onchange="renderList()" style="flex:1; background:#000; border:1px solid var(--dim); color: var(--active); padding:8px; font-family:inherit;">
                         <option value="title_asc">TITLE ↑</option>
@@ -115,16 +107,7 @@
                     </div>
                     <div class="input-group">
                         <label>CATEGORY</label>
-                        <select id="g_category">
-                            <option value="行政">行政</option>
-                            <option value="科技">科技</option>
-                            <option value="資訊">資訊</option>
-                            <option value="企劃">企劃</option>
-                            <option value="藝術">藝術</option>
-                            <option value="音樂">音樂</option>
-                            <option value="校園偵探社">校園偵探社</option>
-                            <option value="雜項">雜項</option>
-                        </select>
+                        <input type="text" id="g_category" placeholder="TYPE CATEGORY">
                     </div>
                     <div class="input-group">
                         <label>TAGS (Comma separated)</label>
@@ -135,7 +118,7 @@
 
             <div>
                 <div class="version-bar">
-                    <div id="versionTabs" style="display:flex; gap:5px;"></div>
+                    <div id="versionTabs" style="display:flex; gap:5px; overflow-x:auto; white-space:nowrap; padding-bottom:4px;"></div>
                     <button class="btn-add-version" onclick="addNewVersion()">+ ADD VERSION</button>
                 </div>
                 
@@ -191,7 +174,9 @@
         // --- Mock Data & State ---
         let db = []; // Will hold 'notices' array
         let currentDocIndex = -1;
-        let currentVerIndex = -1;
+        let currentVerIndex = -1; // (legacy)
+        let verOrder = []; // maps visible tab position -> actual versions index
+        let currentVerPos = -1; // position in verOrder
 
         // --- Init ---
         // 實際使用請替換為 fetch(API_URL)
@@ -209,6 +194,7 @@
             .then(json => {
                 if(json.data && json.data.notices) {
                     db = json.data.notices;
+                    rebuildCategoryFilterOptions();
                     renderList();
                 }
                 document.getElementById('loader').style.display = 'none';
@@ -228,7 +214,39 @@
                 .replaceAll("'",'&#039;');
         }
 
+        function parseUploadTime(t){
+            const s = String(t || '').trim();
+            if(!s) return Number.POSITIVE_INFINITY; // unsaved/new => newest (rightmost)
+            let iso = s;
+            if (/^\d{4}\/\d{2}\/\d{2}\s+\d{2}:\d{2}/.test(s)) {
+                iso = s.replaceAll('/', '-').replace(' ', 'T') + ':00';
+            }
+            const ms = Date.parse(iso);
+            return Number.isFinite(ms) ? ms : Number.POSITIVE_INFINITY;
+        }
+
+        function rebuildCategoryFilterOptions(){
+            const sel = document.getElementById('docFilterCat');
+            if(!sel) return;
+            const prev = sel.value;
+            const set = new Set();
+            (db || []).forEach(d => (d.category || []).forEach(c => { if(String(c).trim()) set.add(String(c).trim()); }));
+            const cats = Array.from(set).sort((a,b)=>a.localeCompare(b,'zh-Hant'));
+            sel.innerHTML = '<option value="">ALL CATEGORIES</option>' + cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+            sel.value = cats.includes(prev) ? prev : '';
+        }
+
+        function buildVersionOrder(){
+            const doc = db[currentDocIndex];
+            if(!doc){ verOrder = []; currentVerPos = -1; return; }
+            verOrder = (doc.versions || []).map((v,i)=>({i, t: parseUploadTime(v.uploadTime)}))
+                .sort((a,b)=>a.t - b.t)
+                .map(x=>x.i);
+            currentVerPos = verOrder.length ? (verOrder.length - 1) : -1;
+        }
+
         function renderList() {
+            rebuildCategoryFilterOptions();
             const list = document.getElementById('docList');
             const q = String(document.getElementById('docSearch')?.value || '').trim().toLowerCase();
             const cat = String(document.getElementById('docFilterCat')?.value || '').trim();
@@ -271,7 +289,10 @@
 
         function selectDoc(index) {
             currentDocIndex = index;
-            currentVerIndex = 0; // Default to latest (or first)
+            buildVersionOrder(); // compute order by uploadTime
+            // Default to newest (rightmost)
+            currentVerIndex = verOrder.length ? verOrder[verOrder.length-1] : 0;
+            currentVerPos = verOrder.length ? (verOrder.length-1) : 0;
             renderList();
             document.getElementById('editorPanel').style.display = 'flex';
             populateGlobalForm();
@@ -283,7 +304,7 @@
             // Template for new doc
             const newDoc = {
                 title: "NEW DOCUMENT",
-                category: ["雜項"],
+                category: [""],
                 tags: [],
                 versions: [
                     {
@@ -306,53 +327,81 @@
 
         function populateGlobalForm() {
             const doc = db[currentDocIndex];
-            document.getElementById('g_title').value = doc.title;
-            // Handle Category array or string
-            document.getElementById('g_category').value = Array.isArray(doc.category) ? doc.category[0] : doc.category; 
-            document.getElementById('g_tags').value = doc.tags.join(', ');
-            
+            document.getElementById('g_title').value = doc.title || '';
+            const catVal = Array.isArray(doc.category) ? (doc.category[0] || '') : (doc.category || '');
+            document.getElementById('g_category').value = catVal;
+            document.getElementById('g_tags').value = (doc.tags || []).join(', ');
+
             // Bind changes
-            document.getElementById('g_title').oninput = (e) => { db[currentDocIndex].title = e.target.value; };
+            document.getElementById('g_title').oninput = (e) => { db[currentDocIndex].title = e.target.value; renderList(); };
+            document.getElementById('g_category').oninput = (e) => { 
+                const v = String(e.target.value || '').trim();
+                db[currentDocIndex].category = v ? [v] : [];
+                rebuildCategoryFilterOptions();
+                renderList();
+            };
+            document.getElementById('g_tags').oninput = (e) => { 
+                db[currentDocIndex].tags = String(e.target.value || '').split(',').map(s=>s.trim()).filter(Boolean);
+            };
         }
 
         function renderVersionTabs() {
             const tabsContainer = document.getElementById('versionTabs');
             tabsContainer.innerHTML = '';
             const doc = db[currentDocIndex];
-            
-            doc.versions.forEach((v, idx) => {
+            if(!doc) return;
+
+            if(!Array.isArray(verOrder) || verOrder.length !== (doc.versions||[]).length){
+                buildVersionOrder();
+            }
+            verOrder.forEach((actualIdx, pos) => {
+                const v = doc.versions[actualIdx];
                 let btn = document.createElement('div');
-                btn.className = `v-tab ${idx === currentVerIndex ? 'active' : ''}`;
-                btn.innerText = v.version || `Ver ${idx+1}`;
+                btn.className = `v-tab ${pos === currentVerPos ? 'active' : ''}`;
+                btn.innerText = v.version || `Ver ${pos+1}`;
                 btn.onclick = () => {
-                    currentVerIndex = idx;
+                    currentVerPos = pos;
+                    currentVerIndex = actualIdx;
                     renderVersionTabs();
                     populateVersionForm();
                 };
                 tabsContainer.appendChild(btn);
             });
+
+            setTimeout(() => { tabsContainer.scrollLeft = tabsContainer.scrollWidth; }, 0);
         }
 
         function addNewVersion() {
             const doc = db[currentDocIndex];
             const newVer = {
-                id: `ID-${Date.now()}`, // Temporary ID
+                id: `ID-${Date.now()}`,
                 version: "New Ver",
-                content: doc.title, // Inherit title
+                content: doc.title || "",
                 uploader: "",
-                uploadTime: "", // Server will fill
+                uploadTime: "",
                 description: "",
                 pdf: "",
                 related: []
             };
-            doc.versions.unshift(newVer); // Add as newest
-            currentVerIndex = 0;
+            doc.versions = doc.versions || [];
+            doc.versions.push(newVer);
+            buildVersionOrder();
+            currentVerPos = verOrder.length ? (verOrder.length - 1) : 0;
+            currentVerIndex = verOrder.length ? verOrder[currentVerPos] : 0;
             renderVersionTabs();
             populateVersionForm();
         }
 
         function populateVersionForm() {
-            const ver = db[currentDocIndex].versions[currentVerIndex];
+            const doc = db[currentDocIndex];
+            if(!doc) return;
+            if(!Array.isArray(verOrder) || verOrder.length !== (doc.versions||[]).length){
+                buildVersionOrder();
+            }
+            const actualIdx = verOrder[currentVerPos] ?? 0;
+            currentVerIndex = actualIdx;
+            const ver = doc.versions[actualIdx];
+
             document.getElementById('v_id').value = ver.id || '';
             document.getElementById('v_verStr').value = ver.version || '';
             document.getElementById('v_uploader').value = ver.uploader || '';
@@ -361,17 +410,16 @@
             document.getElementById('v_desc').value = ver.description || '';
             document.getElementById('v_pdf').value = ver.pdf || '';
             document.getElementById('v_related').value = (ver.related || []).join(', ');
-            
+
             updatePreview();
 
-            // Bind Inputs to Data
             document.getElementById('v_id').onchange = (e) => ver.id = e.target.value;
             document.getElementById('v_verStr').onchange = (e) => { ver.version = e.target.value; renderVersionTabs(); };
             document.getElementById('v_uploader').onchange = (e) => ver.uploader = e.target.value;
             document.getElementById('v_content').onchange = (e) => ver.content = e.target.value;
             document.getElementById('v_desc').onchange = (e) => ver.description = e.target.value;
             document.getElementById('v_pdf').onchange = (e) => { ver.pdf = e.target.value; updatePreview(); };
-            document.getElementById('v_related').onchange = (e) => ver.related = e.target.value.split(',').map(s=>s.trim());
+            document.getElementById('v_related').onchange = (e) => ver.related = e.target.value.split(',').map(s=>s.trim()).filter(Boolean);
         }
 
         function updatePreview() {
@@ -397,8 +445,8 @@
             const doc = db[currentDocIndex];
             if(doc) {
                 doc.title = document.getElementById('g_title').value;
-                doc.category = [document.getElementById('g_category').value];
-                doc.tags = document.getElementById('g_tags').value.split(',').map(s=>s.trim());
+                doc.category = [String(document.getElementById('g_category').value || '').trim()].filter(Boolean);
+                doc.tags = String(document.getElementById('g_tags').value || '').split(',').map(s=>s.trim()).filter(Boolean);
             }
 
             const payload = {
