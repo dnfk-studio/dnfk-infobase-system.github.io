@@ -500,7 +500,7 @@
             btn.innerText = 'SAVING...';
             btn.disabled = true;
             try{
-                const res = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+                const res = await fetch(API_URL, { method:'POST', credentials: 'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
                 const json = await res.json();
                 if(!res.ok || json.status !== 'success') throw new Error(json.message || 'SAVE_FAILED');
                 await fetchAll();
@@ -520,7 +520,7 @@
             btn.innerText = 'DELETING...';
             btn.disabled = true;
             try{
-                const res = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+                const res = await fetch(API_URL, { method:'POST', credentials: 'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
                 const json = await res.json();
                 if(!res.ok || json.status !== 'success') throw new Error(json.message || 'DELETE_FAILED');
                 await fetchAll();
@@ -573,7 +573,7 @@
             btn.disabled = true;
 
             try{
-                const res = await fetch(API_URL, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+                const res = await fetch(API_URL, { method: 'POST', credentials: 'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
                 const json = await res.json();
                 if(!res.ok || json.status !== 'success') throw new Error(json.message || 'SAVE_FAILED');
                 await fetchAll();
