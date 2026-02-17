@@ -204,7 +204,7 @@
                 const r = await fetch(API_URL);
                 const json = await r.json();
                 tasks = (json?.data?.cdaProject?.tasks) || [];
-                reports = (json?.data?.cdaReport?.reports) || [];
+                reports = (json?.data?.reports) || [];
                 renderTaskSelect();
                 applyReporterFilter();
             }catch(e){

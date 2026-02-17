@@ -500,7 +500,7 @@
         async function saveReview(){
             const status = document.getElementById('r_status').value;
             const note = document.getElementById('r_note').value;
-            const payload = { action: 'review_report', reportId: currentEditId, status, note };
+            const payload = { action: 'review_report', id: currentEditId, reviewStatus: status, reviewNote: note, reviewer: (window.__ADMIN_EMAIL__||'rkgrbg@gmail.com') };
             const btn = document.querySelector('.btn-save');
             btn.innerText = 'SAVING...';
             btn.disabled = true;
@@ -520,7 +520,7 @@
 
         async function deleteReport(){
             if(!confirm('DELETE THIS REPORT?')) return;
-            const payload = { action: 'delete_report', reportId: currentEditId };
+            const payload = { action: 'delete_report', id: currentEditId };
             const btn = document.querySelector('.btn-danger');
             btn.innerText = 'DELETING...';
             btn.disabled = true;

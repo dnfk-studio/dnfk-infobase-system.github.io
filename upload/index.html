@@ -164,7 +164,7 @@
             </div>
 
             <div class="action-bar">
-                <button class="delete" onclick="alert('Delete functionality locked.')">DELETE</button>
+                <button class="delete" onclick="deleteSelected()">DELETE</button>
                 <button class="save" onclick="saveData()">SAVE DATABASE</button>
             </div>
         </div>
@@ -187,6 +187,8 @@
         }
 
         function loadData() {
+            }
+
             document.getElementById('loader').style.display = 'flex';
             // Mock Fetch for demo - Replace with real fetch
             fetch(API_URL) 
@@ -436,12 +438,48 @@
             }
         }
 
-        function saveData() {
+        
+
+function deleteSelected() {
+    if (currentDocIndex < 0 || currentVerPos < 0) {
+        alert('No version selected.');
+        return;
+    }
+    const doc = db[currentDocIndex];
+    const verIdx = verOrder[currentVerPos];
+    const ver = (doc && Array.isArray(doc.versions)) ? doc.versions[verIdx] : null;
+    const verId = ver ? (ver.id || '') : '';
+    const msg = verId ? `Delete version ${verId}?` : 'Delete selected version?';
+    if (!confirm(msg)) return;
+
+    // Remove selected version
+    if (doc && Array.isArray(doc.versions)) {
+        doc.versions.splice(verIdx, 1);
+    }
+
+    // If no versions left, remove entire document
+    if (!doc.versions || doc.versions.length === 0) {
+        db.splice(currentDocIndex, 1);
+        currentDocIndex = -1;
+        currentVerPos = -1;
+    } else {
+        // Reset selection to latest (right-most)
+        currentVerPos = doc.versions.length - 1;
+    }
+
+    // Re-render and save to backend
+    renderList();
+    if (currentDocIndex >= 0) openDoc(currentDocIndex);
+    saveData(true);
+}
+
+function saveData(skipSync) {
             // Prepare Payload
             // Note: We are sending the WHOLE notices array back.
             // Ideally, backend handles partial updates, but assuming simple JSON overwrite:
             
-            // Sync Global Inputs one last time
+            // Sync inputs back into db (skip if deleting or nothing selected)
+            if (!skipSync && currentDocIndex >= 0) {
             const doc = db[currentDocIndex];
             if(doc) {
                 doc.title = document.getElementById('g_title').value;
