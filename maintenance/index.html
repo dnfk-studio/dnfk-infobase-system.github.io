@@ -2,406 +2,268 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Info Base Backend System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SYS.CORE // SETTINGS</title>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg: #050505;
-            --panel: #0a0a0a;
-            --line: #333;
-            --active: #00f0ff;
-            --alert: #ff2a6d;
-            --text: #e0e0e0;
-            --dim: #666;
-            --safe-top: env(safe-area-inset-top);
-            --safe-bottom: env(safe-area-inset-bottom);
+        :root { --bg: #050505; --panel: #111; --line: #333; --active: #00f0ff; --alert: #ff2a6d; --text: #ddd; --dim: #666; }
+        * { box-sizing: border-box; outline: none; }
+        
+        body { 
+            background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; 
+            margin: 0; padding-bottom: 80px; min-height: 100vh;
+            display: flex; flex-direction: column;
         }
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        /* --- Header (Standardized) --- */
+        header { 
+            height: 60px; border-bottom: 1px solid var(--line); background: rgba(5,5,5,0.95); 
+            display: flex; align-items: center; justify-content: space-between; padding: 0 20px; 
+            position: sticky; top: 0; z-index: 100; backdrop-filter: blur(5px);
+        }
+        h1 { font-size: 16px; margin: 0; color: var(--text); letter-spacing: 2px; }
+        h1 span { color: var(--alert); }
+        .back-link { color: var(--dim); text-decoration: none; font-size: 12px; transition: 0.3s; }
+        .back-link:hover { color: #fff; }
 
-        body {
-            background-color: var(--bg);
-            color: var(--text);
-            font-family: 'JetBrains Mono', monospace;
-            margin: 0;
-            padding: 0;
-            padding-bottom: calc(80px + var(--safe-bottom));
-            overflow-x: hidden;
-            background-image: 
-                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-            background-size: 20px 20px;
+        /* --- Main Layout --- */
+        .container { max-width: 700px; margin: 30px auto; padding: 0 20px; }
+        
+        .card { 
+            background: var(--panel); border: 1px solid var(--line); 
+            padding: 25px; margin-bottom: 20px; 
+        }
+        .card-title { 
+            font-size: 12px; color: var(--active); margin-bottom: 20px; 
+            padding-bottom: 10px; border-bottom: 1px solid #222; 
+            text-transform: uppercase; letter-spacing: 1px; display: flex; justify-content: space-between;
         }
 
-        .nav-trigger {
-            position: relative;
-            z-index: 200;
-            cursor: pointer;
-            padding: 10px;
-            margin-right: -10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .nav-trigger .status-light {
+        /* --- Input Elements --- */
+        .input-group { margin-bottom: 20px; }
+        label { display: block; font-size: 10px; color: var(--dim); margin-bottom: 8px; }
+        
+        input, textarea { 
+            width: 100%; background: #000; border: 1px solid var(--line); 
+            color: #fff; padding: 12px; font-family: inherit; font-size: 14px; 
             transition: 0.3s;
         }
+        input:focus, textarea:focus { border-color: var(--active); }
+        textarea { height: 100px; resize: vertical; }
+
+        /* Grid for compact inputs */
+        .grid-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+        .grid-half { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+        /* --- Maintenance Toggle (Custom) --- */
+        .maint-switch {
+            display: flex; align-items: center; justify-content: space-between;
+            background: #000; border: 1px solid var(--line); padding: 15px;
+            cursor: pointer; transition: 0.3s;
+        }
+        .maint-switch:hover { border-color: var(--dim); }
+        .maint-switch.active { border-color: var(--alert); background: rgba(255, 42, 109, 0.05); }
         
-        .nav-trigger.active .status-light {
-            background: var(--alert);
-            box-shadow: 0 0 10px var(--alert);
-        }
+        .switch-label { font-weight: bold; font-size: 14px; }
+        .switch-status { font-size: 10px; padding: 4px 8px; border: 1px solid var(--dim); color: var(--dim); }
+        .maint-switch.active .switch-status { border-color: var(--alert); color: var(--alert); background: rgba(0,0,0,0.5); }
 
-        .side-menu {
-            position: fixed;
-            top: 0;
-            right: 0;
-            width: 260px;
-            height: 100vh;
-            background: rgba(5, 5, 5, 0.95);
-            backdrop-filter: blur(15px);
-            border-left: 1px solid var(--line);
-            transform: translateX(100%);
-            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-            z-index: 150;
-            padding-top: 80px;
-            box-shadow: -10px 0 30px rgba(0,0,0,0.5);
-            display: flex;
-            flex-direction: column;
-        }
+        /* --- Auth Input Special --- */
+        .auth-field { border-color: var(--alert); color: var(--alert); font-weight: bold; letter-spacing: 3px; text-align: center; }
 
-        .side-menu.open {
-            transform: translateX(0);
-        }
-
-        .menu-backdrop {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0,0,0,0.5);
-            opacity: 0; pointer-events: none; transition: 0.3s;
-            z-index: 140;
-        }
-        .menu-backdrop.active { opacity: 1; pointer-events: auto; }
-
-        .nav-link {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 18px 25px;
-            color: var(--dim);
-            text-decoration: none;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-            font-size: 14px;
-            letter-spacing: 1px;
-            transition: 0.2s;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .nav-link:hover, .nav-link:active {
-            color: var(--active);
-            background: rgba(0, 240, 255, 0.05);
-            padding-left: 35px;
-        }
-
-        .nav-link::before {
-            content: '>';
-            opacity: 0;
-            position: absolute; left: 15px;
-            transition: 0.2s;
-            color: var(--active);
-        }
-        .nav-link:hover::before { opacity: 1; }
-
-        .nav-category {
-            font-size: 10px; color: var(--dim);
-            padding: 20px 25px 5px;
-            opacity: 0.5;
-            margin-top: 10px;
-        }
-
-        header {
-            position: sticky;
-            top: 0;
-            background: rgba(5, 5, 5, 0.9);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid var(--line);
-            padding: calc(15px + var(--safe-top)) 20px 15px;
-            z-index: 10;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        h1 { font-size: 14px; margin: 0; letter-spacing: 2px; color: var(--active); }
-
-        .status-light {
-            width: 8px; height: 8px;
-            background: var(--dim);
-            border-radius: 50%;
-            box-shadow: 0 0 5px var(--dim);
-            transition: 0.3s;
-        }
-        .status-light.on { background: var(--active); box-shadow: 0 0 8px var(--active); }
-        .status-light.busy { background: #ffaa00; box-shadow: 0 0 8px #ffaa00; animation: blink 0.5s infinite; }
-        .status-light.error { background: var(--alert); box-shadow: 0 0 8px var(--alert); }
-        @keyframes blink { 50% { opacity: 0.5; } }
-
-        .container { padding: 20px; max-width: 600px; margin: 0 auto; }
-
-        .section-label {
-            font-size: 10px; color: var(--dim); text-transform: uppercase;
-            letter-spacing: 1px; margin-top: 25px; margin-bottom: 8px;
-            display: flex; align-items: center;
-        }
-        .section-label::after {
-            content: ''; flex: 1; height: 1px; background: var(--line); margin-left: 10px;
-        }
-
-        .auth-zone {
-            border: 1px solid var(--alert);
-            background: rgba(255, 42, 109, 0.05);
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-        .auth-input {
-            border-color: var(--alert) !important;
-            color: var(--alert) !important;
-            font-weight: bold;
-            letter-spacing: 2px;
-        }
-        .auth-input:focus { box-shadow: 0 0 10px rgba(255, 42, 109, 0.3) !important; }
-
-        .maintenance-control {
-            position: relative; border: 1px solid var(--line);
-            background: var(--panel); margin-bottom: 10px; display: flex; height: 60px;
-        }
-        .maintenance-control input {
-            position: absolute; width: 100%; height: 100%; opacity: 0; z-index: 2; cursor: pointer;
-        }
-        .toggle-display {
-            width: 100%; height: 100%; display: flex; justify-content: space-between;
-            align-items: center; padding: 0 20px; transition: 0.3s;
-        }
-        .toggle-label { font-size: 14px; font-weight: bold; letter-spacing: 1px; }
-        .toggle-state { font-size: 12px; padding: 4px 8px; border: 1px solid var(--dim); color: var(--dim); }
-        
-        input:checked + .toggle-display { background: rgba(255, 42, 109, 0.1); border: 1px solid var(--alert); }
-        input:checked + .toggle-display .toggle-label { color: var(--alert); text-shadow: 0 0 10px rgba(255,42,109,0.5); }
-        input:checked + .toggle-display .toggle-state { border-color: var(--alert); color: var(--alert); }
-        input:checked + .toggle-display .toggle-state::before { content: "MAINTENANCE: ON"; }
-        input:not(:checked) + .toggle-display .toggle-state::before { content: "NORMAL MODE"; }
-
-        .input-group { position: relative; margin-bottom: 15px; }
-        label {
-            position: absolute; top: -8px; left: 10px; background: var(--bg);
-            padding: 0 5px; font-size: 10px; color: var(--active);
-        }
-        input, textarea {
-            width: 100%; background: transparent; border: 1px solid var(--line);
-            color: #fff; padding: 15px; font-family: 'JetBrains Mono', monospace;
-            font-size: 14px; border-radius: 0; transition: 0.3s;
-            -webkit-appearance: none; appearance: none;
-        }
-        textarea { min-height: 100px; line-height: 1.5; }
-        input:focus, textarea:focus {
-            border-color: var(--active); box-shadow: 0 0 10px rgba(0, 240, 255, 0.1); outline: none;
-        }
-
+        /* --- Bottom Actions --- */
         .bottom-bar {
             position: fixed; bottom: 0; left: 0; width: 100%;
-            padding: 15px 20px calc(15px + var(--safe-bottom));
-            background: rgba(5, 5, 5, 0.95); border-top: 1px solid var(--line);
-            display: flex; gap: 10px; backdrop-filter: blur(10px); z-index: 100;
+            padding: 15px 20px; background: rgba(5,5,5,0.95); border-top: 1px solid var(--line);
+            display: flex; gap: 10px; z-index: 90;
         }
-        button {
-            flex: 1; height: 50px; border: 1px solid var(--active);
-            background: rgba(0, 240, 255, 0.05); color: var(--active);
-            font-family: 'JetBrains Mono', monospace; font-weight: bold; font-size: 14px;
-            cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
+        button { 
+            flex: 1; padding: 15px; border: none; background: #222; color: var(--dim); 
+            font-family: inherit; font-weight: bold; cursor: pointer; transition: 0.2s;
         }
-        button.btn-primary { background: var(--active); color: #000; }
-        button:active { transform: scale(0.98); }
+        button.primary { background: var(--active); color: #000; }
+        button:hover { opacity: 0.9; color: #fff; }
+        button.primary:hover { color: #000; }
 
-        #overlay {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: var(--bg); z-index: 999; display: flex;
-            flex-direction: column; justify-content: center; align-items: center;
-            transition: opacity 0.5s;
+        /* --- Loader Overlay --- */
+        #loader { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.8); z-index: 999; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            backdrop-filter: blur(5px); transition: opacity 0.3s;
         }
-        #overlay.hidden { opacity: 0; pointer-events: none; }
-        .loader-text { margin-top: 20px; font-size: 12px; letter-spacing: 3px; animation: blink 1s infinite; }
-        .scan-line {
-            width: 200px; height: 2px; background: var(--active);
-            box-shadow: 0 0 10px var(--active); animation: scan 1.5s infinite ease-in-out;
-        }
-        @keyframes scan { 0% { width: 0; opacity: 0; } 50% { width: 200px; opacity: 1; } 100% { width: 0; opacity: 0; } }
+        .loader-text { color: var(--active); font-size: 12px; margin-top: 15px; letter-spacing: 2px; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+
     </style>
 </head>
 <body>
 
-    <div id="overlay">
-        <div class="scan-line"></div>
-        <div class="loader-text" id="loaderMsg">INITIALIZING SECURE LINK...</div>
+    <div id="loader">
+        <div style="width: 50px; height: 50px; border: 2px solid var(--active); border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <div class="loader-text" id="loaderMsg">CONNECTING...</div>
     </div>
-
-    <div id="menuBackdrop" class="menu-backdrop" onclick="toggleMenu()"></div>
-
-    <nav id="sideMenu" class="side-menu">
-        <div class="nav-category">SYS.CORE</div>
-        <a href="javascript:void(0)" onclick="toggleMenu()" class="nav-link" style="color: var(--active);">MAINTENANCE</a>
-        <a href="../upload" class="nav-link">DATA UPLOAD</a>
-        
-        <div class="nav-category">CDA.MODULES</div>
-        <a href="../cda-upload" class="nav-link">CDA INGEST</a>
-        <a href="../cda-manage" class="nav-link">CDA MANAGE</a>
-        
-        <div class="nav-category" style="margin-top:auto; border-top: 1px solid var(--line);">SYSTEM</div>
-        <a href="#" class="nav-link" onclick="location.reload()">RELOAD UI</a>
-    </nav>
+    <style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>
 
     <header>
-        <h1>SYS.BCTD v1.3</h1>
-        <div class="nav-trigger" onclick="toggleMenu()">
-            <div id="led" class="status-light"></div>
-        </div>
+        <h1>SYS.CORE <span>// MAINT</span></h1>
+        <a href="../" class="back-link">← DASHBOARD</a>
     </header>
 
     <div class="container">
-        
-        <div class="section-label" style="color: var(--alert);">Security Clearance</div>
-        <div class="input-group">
-            <label style="color: var(--alert);">ACCESS KEY</label>
-            <input type="password" id="authKey" class="auth-input" placeholder="ENTER PASSCODE">
-        </div>
 
-        <div class="section-label">System Status</div>
-        <div class="maintenance-control">
-            <input type="checkbox" id="maintenance">
-            <div class="toggle-display">
-                <span class="toggle-label">MAINTENANCE</span>
-                <span class="toggle-state"></span>
+        <div class="card">
+            <div class="card-title">System Status Control</div>
+            
+            <input type="checkbox" id="maintenance" style="display:none;" onchange="updateSwitchUI()">
+            
+            <div class="maint-switch" id="maintSwitchUI" onclick="document.getElementById('maintenance').click()">
+                <div>
+                    <div class="switch-label">MAINTENANCE MODE</div>
+                    <div style="font-size: 10px; color: var(--dim); margin-top: 5px;">Lock user access to frontend</div>
+                </div>
+                <div class="switch-status" id="switchText">NORMAL OPS</div>
             </div>
         </div>
 
-        <div class="section-label">Version Control</div>
-        <div class="input-group"><label>VER. CODE</label><input type="text" id="versionCode"></div>
-        <div class="input-group"><label>VER. HIPE</label><input type="text" id="versionHipe"></div>
-        <div class="input-group"><label>VER. DATE</label><input type="number" id="versionDate"></div>
+        <div class="card">
+            <div class="card-title">Version Control</div>
+            <div class="grid-row">
+                <div class="input-group">
+                    <label>VER. CODE</label>
+                    <input type="text" id="versionCode" placeholder="1.0.0">
+                </div>
+                <div class="input-group">
+                    <label>TYPE (HIPE)</label>
+                    <input type="text" id="versionHipe" placeholder="RC / STABLE">
+                </div>
+                <div class="input-group">
+                    <label>BUILD ID</label>
+                    <input type="number" id="versionDate" placeholder="YYMMDD">
+                </div>
+            </div>
+        </div>
 
-        <div class="section-label">Schedule</div>
-        <div class="input-group"><label>START TIME</label><input type="datetime-local" id="timeStart"></div>
-        <div class="input-group"><label>END TIME</label><input type="datetime-local" id="timeEnd"></div>
+        <div class="card">
+            <div class="card-title">Downtime Schedule (Server Time)</div>
+            <div class="grid-half">
+                <div class="input-group">
+                    <label>START TIME</label>
+                    <input type="datetime-local" id="timeStart">
+                </div>
+                <div class="input-group">
+                    <label>END TIME</label>
+                    <input type="datetime-local" id="timeEnd">
+                </div>
+            </div>
+        </div>
 
-        <div class="section-label">Announcements</div>
-        <div class="input-group"><label>MSG (CH)</label><textarea id="purposeCH" placeholder="空白將自動填入預設值"></textarea></div>
-        <div class="input-group"><label>MSG (EN)</label><textarea id="purposeEG" placeholder="Leave empty for default message"></textarea></div>
+        <div class="card">
+            <div class="card-title">Public Announcement</div>
+            <div class="input-group">
+                <label>MESSAGE (TRADITIONAL CHINESE)</label>
+                <textarea id="purposeCH" placeholder="系統維護中..."></textarea>
+            </div>
+            <div class="input-group">
+                <label>MESSAGE (ENGLISH)</label>
+                <textarea id="purposeEG" placeholder="System under maintenance..."></textarea>
+            </div>
+        </div>
 
     </div>
 
     <div class="bottom-bar">
-        <button onclick="fetchData()">RELOAD</button>
-        <button class="btn-primary" onclick="saveData()">EXECUTE</button>
+        <button onclick="fetchData()">DISCARD / RELOAD</button>
+        <button class="primary" onclick="saveData()">EXECUTE & SAVE</button>
     </div>
 
     <script>
-        const API_URL = 'https://script.google.com/macros/s/AKfycbziUjZFbgQBdLq4H9cb2e0goxmPgLHPm_Fl2LiA9lg7POtvttG8T0_EIKNmsngaad2c/exec'; 
+        const API_URL = '/api';
 
-        const loader = document.getElementById('overlay');
+        const loader = document.getElementById('loader');
         const loaderMsg = document.getElementById('loaderMsg');
-        const led = document.getElementById('led');
 
         window.onload = () => {
-            const savedKey = localStorage.getItem('sys_access_key');
-            if(savedKey) document.getElementById('authKey').value = savedKey;
             fetchData();
         };
 
+        function updateSwitchUI() {
+            const chk = document.getElementById('maintenance');
+            const ui = document.getElementById('maintSwitchUI');
+            const txt = document.getElementById('switchText');
 
-        function toggleMenu() {
-            const menu = document.getElementById('sideMenu');
-            const backdrop = document.getElementById('menuBackdrop');
-            const trigger = document.querySelector('.nav-trigger');
-            
-            const isOpen = menu.classList.contains('open');
-            
-            if (isOpen) {
-                menu.classList.remove('open');
-                backdrop.classList.remove('active');
-                trigger.classList.remove('active');
+            if (chk.checked) {
+                ui.classList.add('active');
+                txt.innerText = 'SYSTEM LOCKED';
             } else {
-                menu.classList.add('open');
-                backdrop.classList.add('active');
-                trigger.classList.add('active');
+                ui.classList.remove('active');
+                txt.innerText = 'NORMAL OPS';
             }
         }
 
         function setStatus(state, msg) {
             loaderMsg.textContent = msg;
-            if(state === 'busy') {
-                loader.classList.remove('hidden');
-                led.className = 'status-light busy';
-            } else if(state === 'ready') {
-                loader.classList.add('hidden');
-                led.className = 'status-light on';
-            } else if(state === 'error') {
-                loader.classList.add('hidden');
-                led.className = 'status-light error';
+            if (state === 'busy') {
+                loader.style.opacity = '1';
+                loader.style.pointerEvents = 'auto';
+            } else if (state === 'ready') {
+                loader.style.opacity = '0';
+                loader.style.pointerEvents = 'none';
+            } else if (state === 'error') {
+                loader.style.opacity = '1';
                 alert('ERROR: ' + msg);
+                setTimeout(() => {
+                    loader.style.opacity = '0';
+                    loader.style.pointerEvents = 'none';
+                }, 2000);
             }
         }
 
-        function formatToInput(dateStr) { return dateStr ? dateStr.replace(/\//g, '-').replace(' ', 'T') : ''; }
-        function formatToJson(dateStr) { return dateStr ? dateStr.replace(/-/g, '/').replace('T', ' ') : ''; }
+        function formatToInput(dateStr) {
+            return dateStr ? String(dateStr).replace(/\//g, '-').replace(' ', 'T') : '';
+        }
+
+        function formatToJson(dateStr) {
+            return dateStr ? String(dateStr).replace(/-/g, '/').replace('T', ' ') : '';
+        }
 
         function fetchData() {
-            setStatus('busy', 'DOWNLOADING...');
+            setStatus('busy', 'SYNCING CONFIG...');
             fetch(API_URL)
-            .then(res => res.json())
-            .then(json => {
-                if (json.status === 'success') {
-                    const data = json.data;
-                    document.getElementById('maintenance').checked = data.maintenance;
-                    document.getElementById('versionCode').value = data.versionCode;
-                    document.getElementById('versionHipe').value = data.versionHipe;
-                    document.getElementById('versionDate').value = data.versionDate;
-                    document.getElementById('timeStart').value = formatToInput(data.timeStart);
-                    document.getElementById('timeEnd').value = formatToInput(data.timeEnd);
-                    document.getElementById('purposeCH').value = data.purposeCH;
-                    document.getElementById('purposeEG').value = data.purposeEG;
-                    setStatus('ready', '');
-                } else {
-                    setStatus('error', json.error);
-                }
-            })
-            .catch(err => setStatus('error', err));
+                .then(res => res.json())
+                .then(json => {
+                    if (json.status === 'success') {
+                        const data = (json.data && json.data.maintenance) ? json.data.maintenance : (json.data || {});
+                        document.getElementById('maintenance').checked = !!data.maintenance;
+                        updateSwitchUI();
+
+                        document.getElementById('versionCode').value = data.versionCode || '';
+                        document.getElementById('versionHipe').value = data.versionHipe || '';
+                        document.getElementById('versionDate').value = data.versionDate || '';
+                        document.getElementById('timeStart').value = formatToInput(data.timeStart || '');
+                        document.getElementById('timeEnd').value = formatToInput(data.timeEnd || '');
+                        document.getElementById('purposeCH').value = data.purposeCH || '';
+                        document.getElementById('purposeEG').value = data.purposeEG || '';
+
+                        setStatus('ready', '');
+                    } else {
+                        setStatus('error', json.error || json.message || 'FETCH_FAILED');
+                    }
+                })
+                .catch(err => setStatus('error', err));
         }
 
         function saveData() {
-            const key = document.getElementById('authKey').value;
-            if(!key) {
-                alert('MISSING ACCESS KEY');
-                document.getElementById('authKey').focus();
-                return;
-            }
-            localStorage.setItem('sys_access_key', key);
-
-
             const inputCH = document.getElementById('purposeCH');
             const inputEG = document.getElementById('purposeEG');
 
-            if (!inputCH.value.trim()) {
-                inputCH.value = "維護完成，請重新連線。";
-            }
-            if (!inputEG.value.trim()) {
-                inputEG.value = "Maintenance complete. Please reconnect.";
-            }
+            if (!inputCH.value.trim()) inputCH.value = '維護完成，請重新連線。';
+            if (!inputEG.value.trim()) inputEG.value = 'Maintenance complete. Please reconnect.';
 
             setStatus('busy', 'UPLOADING...');
-            
+
             const payload = {
-                authKey: key,
+                action: 'update_maintenance',
                 data: {
                     maintenance: document.getElementById('maintenance').checked,
                     versionCode: document.getElementById('versionCode').value,
@@ -416,19 +278,19 @@
 
             fetch(API_URL, {
                 method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             })
-            .then(res => res.json())
-            .then(json => {
-                if (json.status === 'success') {
-                    setStatus('ready', '');
-                    document.body.style.background = "#0a1a1a";
-                    setTimeout(() => document.body.style.background = "#050505", 200);
-                } else {
-                    setStatus('error', json.error);
-                }
-            })
-            .catch(err => setStatus('error', err));
+                .then(res => res.json().then(j => ({ ok: res.ok, j })))
+                .then(({ ok, j }) => {
+                    if (ok && j.status === 'success') {
+                        setStatus('ready', '');
+                        alert('CONFIGURATION UPDATED.');
+                    } else {
+                        setStatus('error', j.error || j.message || 'SAVE_FAILED');
+                    }
+                })
+                .catch(err => setStatus('error', err));
         }
     </script>
 </body>

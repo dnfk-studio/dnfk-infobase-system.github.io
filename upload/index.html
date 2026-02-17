@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DATA.ARCHIVE // ADMIN</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #050505; --panel: #111; --line: #333; --active: #00f0ff; --alert: #ff2a6d; --text: #ddd; --dim: #666; }
+        * { box-sizing: border-box; outline: none; }
+        body { background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* Header */
+        header { height: 60px; border-bottom: 1px solid var(--line); display: flex; align-items: center; padding: 0 20px; justify-content: space-between; background: rgba(5,5,5,0.9); flex-shrink: 0; }
+        h1 { font-size: 16px; margin: 0; color: var(--active); letter-spacing: 2px; }
+        .back-link { color: var(--dim); text-decoration: none; font-size: 12px; }
+        .back-link:hover { color: var(--active); }
+
+        /* Main Layout */
+        .main-container { display: grid; grid-template-columns: 300px 1fr; height: calc(100vh - 60px); }
+        
+        /* Sidebar (List) */
+        .sidebar { border-right: 1px solid var(--line); overflow-y: auto; display: flex; flex-direction: column; }
+        .search-box { padding: 15px; border-bottom: 1px solid var(--line); }
+        .search-box input { width: 100%; background: #000; border: 1px solid var(--dim); color: var(--active); padding: 8px; font-family: inherit; }
+        
+        .doc-list { list-style: none; padding: 0; margin: 0; }
+        .doc-item { padding: 15px; border-bottom: 1px solid #222; cursor: pointer; transition: 0.2s; }
+        .doc-item:hover { background: rgba(0, 240, 255, 0.05); }
+        .doc-item.active { background: rgba(0, 240, 255, 0.1); border-left: 3px solid var(--active); }
+        .doc-title { font-weight: bold; font-size: 14px; margin-bottom: 5px; display: block; }
+        .doc-meta { font-size: 10px; color: var(--dim); }
+
+        .btn-new-doc { width: 100%; padding: 15px; background: var(--line); color: var(--text); border: none; cursor: pointer; font-family: inherit; font-weight: bold; }
+        .btn-new-doc:hover { background: var(--active); color: #000; }
+
+        /* Editor Area */
+        .editor { padding: 30px; overflow-y: auto; display: flex; flex-direction: column; gap: 30px; }
+        
+        /* Form Sections */
+        .section-title { color: var(--active); font-size: 12px; border-bottom: 1px solid var(--line); padding-bottom: 5px; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .grid-form { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .full-width { grid-column: span 2; }
+
+        .input-group { display: flex; flex-direction: column; gap: 5px; }
+        label { font-size: 10px; color: var(--dim); }
+        input, select, textarea { background: rgba(255,255,255,0.05); border: 1px solid var(--line); color: #fff; padding: 10px; font-family: inherit; font-size: 13px; }
+        input:focus, textarea:focus { border-color: var(--active); }
+        textarea { height: 80px; resize: vertical; }
+
+        /* Version Control Tabs */
+        .version-bar { display: flex; gap: 5px; border-bottom: 1px solid var(--line); padding-bottom: 10px; align-items: center; }
+        .v-tab { padding: 5px 15px; font-size: 12px; cursor: pointer; border: 1px solid var(--line); color: var(--dim); }
+        .v-tab.active { border-color: var(--active); color: var(--active); background: rgba(0,240,255,0.05); }
+        .btn-add-version { background: var(--active); color: #000; border: none; padding: 5px 10px; font-size: 12px; cursor: pointer; margin-left: auto; font-weight: bold; }
+
+        /* PDF Preview */
+        .pdf-preview { width: 100%; height: 200px; background: #000; border: 1px dashed var(--dim); display: flex; align-items: center; justify-content: center; color: var(--dim); font-size: 12px; margin-top: 10px; }
+
+        /* Actions */
+        .action-bar { margin-top: auto; padding-top: 20px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 10px; }
+        button.save { background: var(--active); color: #000; border: none; padding: 10px 30px; font-family: inherit; font-weight: bold; cursor: pointer; }
+        button.delete { background: rgba(255, 42, 109, 0.1); color: var(--alert); border: 1px solid var(--alert); padding: 10px 20px; font-family: inherit; cursor: pointer; }
+
+        /* Loading */
+        #loader { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:flex; justify-content:center; align-items:center; z-index:999; display: none; }
+    </style>
+</head>
+<body>
+    <div id="loader">PROCESSING DATA...</div>
+
+    <header>
+        <h1>DATA.ARCHIVE // MANAGER</h1>
+        <a href="../" class="back-link">← RETURN TO HUB</a>
+    </header>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="search-box">
+                <input type="text" placeholder="SEARCH DOCUMENTS..." id="docSearch" oninput="renderList()">
+                <div style="display:flex; gap:8px; margin-top:10px;">
+                    <select id="docFilterCat" onchange="renderList()" style="flex:1; background:#000; border:1px solid var(--dim); color: var(--active); padding:8px; font-family:inherit;">
+                        <option value="">ALL CATEGORIES</option>
+                        <option value="行政">行政</option>
+                        <option value="科技">科技</option>
+                        <option value="資訊">資訊</option>
+                        <option value="企劃">企劃</option>
+                        <option value="藝術">藝術</option>
+                        <option value="音樂">音樂</option>
+                        <option value="校園偵探社">校園偵探社</option>
+                        <option value="雜項">雜項</option>
+                    </select>
+                    <select id="docSort" onchange="renderList()" style="flex:1; background:#000; border:1px solid var(--dim); color: var(--active); padding:8px; font-family:inherit;">
+                        <option value="title_asc">TITLE ↑</option>
+                        <option value="title_desc">TITLE ↓</option>
+                        <option value="versions_desc">VERSIONS ↓</option>
+                        <option value="versions_asc">VERSIONS ↑</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn-new-doc" onclick="createNewDoc()">+ NEW DOCUMENT</button>
+            <ul class="doc-list" id="docList">
+                </ul>
+        </div>
+
+        <div class="editor" id="editorPanel" style="display:none;">
+            
+            <div>
+                <div class="section-title">Global Attributes (All Versions)</div>
+                <div class="grid-form">
+                    <div class="input-group full-width">
+                        <label>DOCUMENT TITLE</label>
+                        <input type="text" id="g_title">
+                    </div>
+                    <div class="input-group">
+                        <label>CATEGORY</label>
+                        <select id="g_category">
+                            <option value="行政">行政</option>
+                            <option value="科技">科技</option>
+                            <option value="資訊">資訊</option>
+                            <option value="企劃">企劃</option>
+                            <option value="藝術">藝術</option>
+                            <option value="音樂">音樂</option>
+                            <option value="校園偵探社">校園偵探社</option>
+                            <option value="雜項">雜項</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>TAGS (Comma separated)</label>
+                        <input type="text" id="g_tags">
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="version-bar">
+                    <div id="versionTabs" style="display:flex; gap:5px;"></div>
+                    <button class="btn-add-version" onclick="addNewVersion()">+ ADD VERSION</button>
+                </div>
+                
+                <div class="section-title" style="margin-top:15px;">Version Details</div>
+                <div class="grid-form">
+                    <div class="input-group">
+                        <label>VERSION ID</label>
+                        <input type="text" id="v_id">
+                    </div>
+                    <div class="input-group">
+                        <label>VERSION STRING</label>
+                        <input type="text" id="v_verStr" placeholder="e.g. 第03版">
+                    </div>
+                    <div class="input-group">
+                        <label>UPLOADER</label>
+                        <input type="text" id="v_uploader">
+                    </div>
+                    <div class="input-group">
+                        <label>UPLOAD TIME (Cloud Timestamp on Save)</label>
+                        <input type="text" id="v_time" readonly placeholder="SYSTEM AUTO-FILL">
+                    </div>
+                    <div class="input-group full-width">
+                        <label>CONTENT / TITLE VARIATION</label>
+                        <input type="text" id="v_content">
+                    </div>
+                    <div class="input-group full-width">
+                        <label>DESCRIPTION / CHANGELOG</label>
+                        <textarea id="v_desc"></textarea>
+                    </div>
+                    <div class="input-group full-width">
+                        <label>PDF URL (Google Drive Link)</label>
+                        <input type="text" id="v_pdf" onchange="updatePreview()">
+                    </div>
+                    <div class="input-group full-width">
+                        <label>RELATED DOCS (IDs, Comma separated)</label>
+                        <input type="text" id="v_related">
+                    </div>
+                </div>
+
+                <div class="pdf-preview" id="pdfPreviewBox">
+                    PDF PREVIEW AREA
+                </div>
+            </div>
+
+            <div class="action-bar">
+                <button class="delete" onclick="alert('Delete functionality locked.')">DELETE</button>
+                <button class="save" onclick="saveData()">SAVE DATABASE</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Mock Data & State ---
+        let db = []; // Will hold 'notices' array
+        let currentDocIndex = -1;
+        let currentVerIndex = -1;
+
+        // --- Init ---
+        // 實際使用請替換為 fetch(API_URL)
+        const API_URL = '/api'; 
+
+        window.onload = function() {
+            loadData();
+        }
+
+        function loadData() {
+            document.getElementById('loader').style.display = 'flex';
+            // Mock Fetch for demo - Replace with real fetch
+            fetch(API_URL) 
+            .then(r => r.json())
+            .then(json => {
+                if(json.data && json.data.notices) {
+                    db = json.data.notices;
+                    renderList();
+                }
+                document.getElementById('loader').style.display = 'none';
+            })
+            .catch(e => {
+                alert("Error loading: " + e);
+                document.getElementById('loader').style.display = 'none';
+            });
+        }
+
+        function escapeHtml(str){
+            return String(str || '')
+                .replaceAll('&','&amp;')
+                .replaceAll('<','&lt;')
+                .replaceAll('>','&gt;')
+                .replaceAll('"','&quot;')
+                .replaceAll("'",'&#039;');
+        }
+
+        function renderList() {
+            const list = document.getElementById('docList');
+            const q = String(document.getElementById('docSearch')?.value || '').trim().toLowerCase();
+            const cat = String(document.getElementById('docFilterCat')?.value || '').trim();
+            const sort = String(document.getElementById('docSort')?.value || 'title_asc');
+
+            let items = db.map((doc, idx) => ({ doc, idx }));
+
+            if (cat) {
+                items = items.filter(x => (x.doc.category || []).includes(cat));
+            }
+            if (q) {
+                items = items.filter(x => {
+                    const title = String(x.doc.title || '').toLowerCase();
+                    const tags = (x.doc.tags || []).join(',').toLowerCase();
+                    const cats = (x.doc.category || []).join(',').toLowerCase();
+                    return title.includes(q) || tags.includes(q) || cats.includes(q);
+                });
+            }
+
+            const byTitle = (a, b) => String(a.doc.title || '').localeCompare(String(b.doc.title || ''), 'zh-Hant');
+            const byVersions = (a, b) => (a.doc.versions?.length || 0) - (b.doc.versions?.length || 0);
+
+            if (sort === 'title_desc') items.sort((a,b)=>byTitle(b,a));
+            else if (sort === 'versions_desc') items.sort((a,b)=>byVersions(b,a));
+            else if (sort === 'versions_asc') items.sort(byVersions);
+            else items.sort(byTitle);
+
+            list.innerHTML = '';
+            items.forEach(({ doc, idx }) => {
+                let li = document.createElement('li');
+                li.className = `doc-item ${idx === currentDocIndex ? 'active' : ''}`;
+                li.innerHTML = `
+                    <span class="doc-title">${escapeHtml(doc.title)}</span>
+                    <span class="doc-meta">${(doc.versions||[]).length} Versions | ${(doc.category||[]).join(', ')}</span>
+                `;
+                li.onclick = () => selectDoc(idx);
+                list.appendChild(li);
+            });
+        }
+
+        function selectDoc(index) {
+            currentDocIndex = index;
+            currentVerIndex = 0; // Default to latest (or first)
+            renderList();
+            document.getElementById('editorPanel').style.display = 'flex';
+            populateGlobalForm();
+            renderVersionTabs();
+            populateVersionForm();
+        }
+
+        function createNewDoc() {
+            // Template for new doc
+            const newDoc = {
+                title: "NEW DOCUMENT",
+                category: ["雜項"],
+                tags: [],
+                versions: [
+                    {
+                        id: "NEW-001",
+                        version: "v1.0",
+                        content: "",
+                        uploader: "",
+                        uploadTime: "",
+                        description: "",
+                        pdf: "",
+                        related: []
+                    }
+                ]
+            };
+            db.unshift(newDoc); // Add to top
+            selectDoc(0);
+        }
+
+        // --- Form Handling ---
+
+        function populateGlobalForm() {
+            const doc = db[currentDocIndex];
+            document.getElementById('g_title').value = doc.title;
+            // Handle Category array or string
+            document.getElementById('g_category').value = Array.isArray(doc.category) ? doc.category[0] : doc.category; 
+            document.getElementById('g_tags').value = doc.tags.join(', ');
+            
+            // Bind changes
+            document.getElementById('g_title').oninput = (e) => { db[currentDocIndex].title = e.target.value; };
+        }
+
+        function renderVersionTabs() {
+            const tabsContainer = document.getElementById('versionTabs');
+            tabsContainer.innerHTML = '';
+            const doc = db[currentDocIndex];
+            
+            doc.versions.forEach((v, idx) => {
+                let btn = document.createElement('div');
+                btn.className = `v-tab ${idx === currentVerIndex ? 'active' : ''}`;
+                btn.innerText = v.version || `Ver ${idx+1}`;
+                btn.onclick = () => {
+                    currentVerIndex = idx;
+                    renderVersionTabs();
+                    populateVersionForm();
+                };
+                tabsContainer.appendChild(btn);
+            });
+        }
+
+        function addNewVersion() {
+            const doc = db[currentDocIndex];
+            const newVer = {
+                id: `ID-${Date.now()}`, // Temporary ID
+                version: "New Ver",
+                content: doc.title, // Inherit title
+                uploader: "",
+                uploadTime: "", // Server will fill
+                description: "",
+                pdf: "",
+                related: []
+            };
+            doc.versions.unshift(newVer); // Add as newest
+            currentVerIndex = 0;
+            renderVersionTabs();
+            populateVersionForm();
+        }
+
+        function populateVersionForm() {
+            const ver = db[currentDocIndex].versions[currentVerIndex];
+            document.getElementById('v_id').value = ver.id || '';
+            document.getElementById('v_verStr').value = ver.version || '';
+            document.getElementById('v_uploader').value = ver.uploader || '';
+            document.getElementById('v_time').value = ver.uploadTime || 'PENDING SERVER TIME';
+            document.getElementById('v_content').value = ver.content || '';
+            document.getElementById('v_desc').value = ver.description || '';
+            document.getElementById('v_pdf').value = ver.pdf || '';
+            document.getElementById('v_related').value = (ver.related || []).join(', ');
+            
+            updatePreview();
+
+            // Bind Inputs to Data
+            document.getElementById('v_id').onchange = (e) => ver.id = e.target.value;
+            document.getElementById('v_verStr').onchange = (e) => { ver.version = e.target.value; renderVersionTabs(); };
+            document.getElementById('v_uploader').onchange = (e) => ver.uploader = e.target.value;
+            document.getElementById('v_content').onchange = (e) => ver.content = e.target.value;
+            document.getElementById('v_desc').onchange = (e) => ver.description = e.target.value;
+            document.getElementById('v_pdf').onchange = (e) => { ver.pdf = e.target.value; updatePreview(); };
+            document.getElementById('v_related').onchange = (e) => ver.related = e.target.value.split(',').map(s=>s.trim());
+        }
+
+        function updatePreview() {
+            const url = document.getElementById('v_pdf').value;
+            const box = document.getElementById('pdfPreviewBox');
+            if(url && url.includes('drive.google.com')) {
+                // Convert view url to preview url if needed, or just show link state
+                const previewUrl = url.replace('/view', '/preview');
+                box.innerHTML = `<iframe src="${previewUrl}" width="100%" height="100%" style="border:none;"></iframe>`;
+            } else if (url) {
+                box.innerHTML = `<a href="${url}" target="_blank" style="color:var(--active)">OPEN LINK ↗</a>`;
+            } else {
+                box.innerHTML = "NO PDF LINKED";
+            }
+        }
+
+        function saveData() {
+            // Prepare Payload
+            // Note: We are sending the WHOLE notices array back.
+            // Ideally, backend handles partial updates, but assuming simple JSON overwrite:
+            
+            // Sync Global Inputs one last time
+            const doc = db[currentDocIndex];
+            if(doc) {
+                doc.title = document.getElementById('g_title').value;
+                doc.category = [document.getElementById('g_category').value];
+                doc.tags = document.getElementById('g_tags').value.split(',').map(s=>s.trim());
+            }
+
+            const payload = {
+                action: "update_notices",
+                data: db,
+                timestamp: "CLOUD_TIME_REQUEST" // Flag for backend
+            };
+
+            document.getElementById('loader').style.display = 'flex';
+            
+            fetch(API_URL, {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(json => {
+                alert("SAVED SUCCESSFULLY. Cloud timestamp applied.");
+                document.getElementById('loader').style.display = 'none';
+                loadData(); // Reload to get server timestamps
+            })
+            .catch(e => {
+                alert("SAVE FAILED: " + e);
+                document.getElementById('loader').style.display = 'none';
+            });
+        }
+    </script>
+</body>
+</html>

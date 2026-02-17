@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CDA.MANAGE // CORE</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #050505; --panel: #111; --line: #333; --active: #00f0ff; --alert: #ff2a6d; --text: #ddd; --dim: #666; }
+        * { box-sizing: border-box; }
+        body { background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        header { height: 60px; border-bottom: 1px solid var(--line); display: flex; align-items: center; padding: 0 20px; justify-content: space-between; background: rgba(5,5,5,0.95); z-index: 10; }
+        .nav-tabs { display: flex; gap: 20px; }
+        .tab-btn { background: none; border: none; color: var(--dim); font-family: inherit; font-size: 14px; cursor: pointer; padding: 5px 0; border-bottom: 2px solid transparent; }
+        .tab-btn.active { color: var(--active); border-bottom-color: var(--active); }
+        .tab-btn:hover { color: #fff; }
+
+        .main-content { flex: 1; overflow-y: auto; padding: 20px; position: relative; }
+
+        .toolbar { display:flex; gap:10px; align-items:center; margin-bottom:12px; flex-wrap:wrap; }
+        .toolbar input, .toolbar select { background:#000; border:1px solid var(--line); color:#fff; padding:10px; font-family:inherit; font-size:12px; }
+        .toolbar .hint { color: var(--dim); font-size: 11px; }
+
+        /* Table Styles */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .data-table th { text-align: left; border-bottom: 1px solid var(--active); padding: 10px; color: var(--active); position: sticky; top: 0; background: var(--bg); }
+        .data-table td { border-bottom: 1px solid #222; padding: 10px; color: var(--text); vertical-align: top; }
+        .data-table tr:hover { background: rgba(0,240,255,0.05); cursor: pointer; }
+        .tag { padding: 2px 6px; background: #222; border: 1px solid var(--dim); border-radius: 4px; font-size: 10px; }
+
+        /* Modal / Edit Panel */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; display: none; justify-content: flex-end; }
+        .modal-overlay.open { display: flex; }
+
+        .edit-panel { width: 520px; background: #0a0a0a; border-left: 1px solid var(--active); padding: 30px; overflow-y: auto; box-shadow: -10px 0 50px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 20px; transform: translateX(100%); transition: 0.3s; }
+        .modal-overlay.open .edit-panel { transform: translateX(0); }
+
+        .panel-header { font-size: 18px; color: var(--active); border-bottom: 1px solid var(--line); padding-bottom: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items:center; }
+
+        /* Form Grid */
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .full { grid-column: span 2; }
+
+        label { display: block; font-size: 10px; color: var(--dim); margin-bottom: 5px; }
+        input, select, textarea { width: 100%; background: #111; border: 1px solid #333; padding: 10px; color: #fff; font-family: inherit; font-size: 13px; }
+        input:focus, select:focus, textarea:focus { border-color: var(--active); outline: none; }
+        textarea { height: 80px; resize: vertical; }
+
+        /* Custom Checkbox */
+        .chk-group { display: flex; align-items: center; gap: 10px; background: #111; padding: 10px; border: 1px solid #333; }
+        .chk-group input[type="checkbox"] { width: auto; margin: 0; }
+
+        .btn-row { margin-top: auto; display: flex; gap: 10px; padding-top: 20px; border-top: 1px solid var(--line); }
+        .btn { flex: 1; padding: 15px; border: none; font-family: inherit; font-weight: bold; cursor: pointer; }
+        .btn-save { background: var(--active); color: #000; }
+        .btn-danger { background: var(--alert); color: #000; }
+        .btn-cancel { background: transparent; border: 1px solid var(--line); color: var(--dim); }
+        .btn-cancel:hover { border-color: #fff; color: #fff; }
+
+        /* Views */
+        .view-section { display: none; }
+        .view-section.active { display: block; }
+
+        .status-pill { display:inline-block; padding:2px 6px; border:1px solid var(--line); border-radius:4px; font-size:10px; }
+        .pill-pending { color: #fff; border-color: var(--line); }
+        .pill-approved { color: var(--active); border-color: var(--active); }
+        .pill-rejected { color: var(--alert); border-color: var(--alert); }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div style="font-weight:bold; letter-spacing:2px; color:#fff;">CDA.MANAGE</div>
+        <div class="nav-tabs">
+            <button class="tab-btn active" data-tab="tasks" onclick="switchTab('tasks', this)">PROJECT TASKS</button>
+            <button class="tab-btn" data-tab="calendar" onclick="switchTab('calendar', this)">CALENDAR</button>
+            <button class="tab-btn" data-tab="reports" onclick="switchTab('reports', this)">REPORTS</button>
+        </div>
+        <a href="../" style="color:var(--dim); text-decoration:none; font-size:12px;">EXIT</a>
+    </header>
+
+    <div class="main-content">
+
+        <div class="toolbar">
+            <input id="q" type="text" placeholder="搜尋 (ID/標題/擁有人/描述...)" oninput="applyFilters()">
+            <select id="sort" onchange="applyFilters()">
+                <option value="">排序：預設</option>
+                <option value="deadline">排序：DEADLINE</option>
+                <option value="start">排序：START</option>
+                <option value="percent">排序：PROGRESS</option>
+                <option value="createdAt">排序：CREATED (REPORT)</option>
+            </select>
+            <select id="filterStatus" onchange="applyFilters()">
+                <option value="">篩選：全部狀態</option>
+                <option value="RUNNING">RUNNING</option>
+                <option value="PAUSED">PAUSED</option>
+                <option value="IDLE">IDLE</option>
+                <option value="pending">REPORT: pending</option>
+                <option value="approved">REPORT: approved</option>
+                <option value="rejected">REPORT: rejected</option>
+            </select>
+            <select id="filterCat" onchange="applyFilters()">
+                <option value="">篩選：全部類別</option>
+            </select>
+            <span class="hint" id="hint"></span>
+        </div>
+
+        <div id="view-tasks" class="view-section active">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>CATEGORY</th>
+                        <th>TITLE</th>
+                        <th>OWNER</th>
+                        <th>PROGRESS</th>
+                        <th>DEADLINE</th>
+                        <th>STATUS</th>
+                    </tr>
+                </thead>
+                <tbody id="taskListBody"></tbody>
+            </table>
+        </div>
+
+        <div id="view-calendar" class="view-section">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>CATEGORY</th>
+                        <th>EVENT TITLE</th>
+                        <th>DATE</th>
+                        <th>TIME</th>
+                    </tr>
+                </thead>
+                <tbody id="eventListBody"></tbody>
+            </table>
+        </div>
+
+        <div id="view-reports" class="view-section">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>TASK</th>
+                        <th>REPORTER</th>
+                        <th>SELF %</th>
+                        <th>STATUS</th>
+                        <th>CREATED</th>
+                    </tr>
+                </thead>
+                <tbody id="reportListBody"></tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <div id="modalOverlay" class="modal-overlay" onclick="if(event.target === this) closeModal()">
+        <div class="edit-panel" id="editPanel">
+            <div class="panel-header">
+                <span id="panelTitle">EDIT ITEM</span>
+                <button onclick="closeModal()" style="background:none; border:none; color:var(--alert); cursor:pointer; font-size:18px;">✕</button>
+            </div>
+
+            <div id="formContainer" class="form-grid"></div>
+
+            <div class="btn-row" id="btnRow">
+                <button class="btn btn-cancel" onclick="closeModal()">CANCEL</button>
+                <button class="btn btn-save" onclick="saveChanges()">COMMIT CHANGES</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api';
+
+        let cdaProject = { tasks: [], calendar: [] };
+        let reports = [];
+        let activeTab = 'tasks';
+        let currentEditId = null;
+
+        const CATEGORIES = ["行政","科技","資訊","企劃","藝術","音樂","雜項"];
+
+        window.onload = function() {
+            hydrateCategoryFilter();
+            fetchAll();
+        };
+
+        function hydrateCategoryFilter(){
+            const sel = document.getElementById('filterCat');
+            CATEGORIES.forEach(c=>{
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.innerText = c;
+                sel.appendChild(opt);
+            });
+        }
+
+        function switchTab(tab, btnEl) {
+            activeTab = tab;
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(`view-${tab}`).classList.add('active');
+
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            if(btnEl) btnEl.classList.add('active');
+
+            applyFilters();
+        }
+
+        async function fetchAll() {
+            const r = await fetch(API_URL);
+            const json = await r.json();
+            cdaProject = json?.data?.cdaProject || { tasks: [], calendar: [] };
+            if(!cdaProject.calendar) cdaProject.calendar = [];
+            reports = json?.data?.cdaReport?.reports || [];
+            renderAll();
+        }
+
+        function renderAll(){
+            renderTasks(cdaProject.tasks);
+            renderCalendar(cdaProject.calendar);
+            renderReports(reports);
+            applyFilters();
+        }
+
+        function renderTasks(list) {
+            const tbody = document.getElementById('taskListBody');
+            tbody.innerHTML = '';
+            list.forEach(t => {
+                const statusText = t.isPaused ? 'PAUSED' : (t.isRunning ? 'RUNNING' : 'IDLE');
+                const status = t.isPaused ? '<span style="color:var(--alert)">PAUSED</span>' : (t.isRunning ? '<span style="color:var(--active)">RUNNING</span>' : 'IDLE');
+                let tr = document.createElement('tr');
+                tr.dataset.status = statusText;
+                tr.dataset.category = t.category || '';
+                tr.innerHTML = `
+                    <td>${escapeHtml(t.id)}</td>
+                    <td><span class="tag">${escapeHtml(t.category)}</span></td>
+                    <td>${escapeHtml(t.title)}</td>
+                    <td>${escapeHtml(t.owner)}</td>
+                    <td>${Number(t.percent||0)}%</td>
+                    <td>${escapeHtml(t.deadline||'')}</td>
+                    <td>${status}</td>
+                `;
+                tr.onclick = () => openEditTask(t);
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderCalendar(list) {
+            const tbody = document.getElementById('eventListBody');
+            tbody.innerHTML = '';
+            list.forEach(e => {
+                let tr = document.createElement('tr');
+                tr.dataset.status = '';
+                tr.dataset.category = e.category || '';
+                tr.innerHTML = `
+                    <td>${escapeHtml(e.id)}</td>
+                    <td><span class="tag">${escapeHtml(e.category||'')}</span></td>
+                    <td>${escapeHtml(e.title)}</td>
+                    <td>${escapeHtml(e.start||'')} -> ${escapeHtml(e.end||'')}</td>
+                    <td>${escapeHtml(e.time||'')}</td>
+                `;
+                tr.onclick = () => openEditEvent(e);
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderReports(list){
+            const tbody = document.getElementById('reportListBody');
+            tbody.innerHTML = '';
+            list.forEach(r => {
+                const st = (r.review && r.review.status) ? r.review.status : 'pending';
+                const pillClass = st === 'approved' ? 'pill-approved' : (st === 'rejected' ? 'pill-rejected' : 'pill-pending');
+                const taskTitle = r.taskSnapshot?.title || r.taskId || '';
+                let tr = document.createElement('tr');
+                tr.dataset.status = st;
+                tr.dataset.category = r.taskSnapshot?.category || '';
+                tr.innerHTML = `
+                    <td>${escapeHtml(r.id)}</td>
+                    <td>${escapeHtml(taskTitle)}</td>
+                    <td>${escapeHtml(r.reporterEmail||'')}</td>
+                    <td>${Number(r.selfProgress||0)}%</td>
+                    <td><span class="status-pill ${pillClass}">${escapeHtml(st)}</span></td>
+                    <td>${escapeHtml(String(r.createdAt||'').replace('T',' ').replace('+08:00',''))}</td>
+                `;
+                tr.onclick = () => openReviewReport(r);
+                tbody.appendChild(tr);
+            });
+        }
+
+        function applyFilters(){
+            const q = (document.getElementById('q').value || '').trim().toLowerCase();
+            const sortKey = document.getElementById('sort').value;
+            const fs = document.getElementById('filterStatus').value;
+            const fc = document.getElementById('filterCat').value;
+
+            if(activeTab === 'tasks'){
+                let list = [...(cdaProject.tasks||[])];
+                if(q){
+                    list = list.filter(t => JSON.stringify(t).toLowerCase().includes(q));
+                }
+                if(fs){
+                    list = list.filter(t => {
+                        const st = t.isPaused ? 'PAUSED' : (t.isRunning ? 'RUNNING' : 'IDLE');
+                        return st === fs;
+                    });
+                }
+                if(fc){
+                    list = list.filter(t => (t.category||'') === fc);
+                }
+                if(sortKey){
+                    list.sort((a,b)=> cmp(getSortValTask(a,sortKey), getSortValTask(b,sortKey)));
+                }
+                renderTasks(list);
+                document.getElementById('hint').innerText = `Tasks: ${list.length}`;
+            }
+
+            if(activeTab === 'calendar'){
+                let list = [...(cdaProject.calendar||[])];
+                if(q){
+                    list = list.filter(e => JSON.stringify(e).toLowerCase().includes(q));
+                }
+                if(fc){
+                    list = list.filter(e => (e.category||'') === fc);
+                }
+                if(sortKey){
+                    list.sort((a,b)=> cmp(getSortValEvent(a,sortKey), getSortValEvent(b,sortKey)));
+                }
+                renderCalendar(list);
+                document.getElementById('hint').innerText = `Events: ${list.length}`;
+            }
+
+            if(activeTab === 'reports'){
+                let list = [...(reports||[])];
+                if(q){
+                    list = list.filter(r => JSON.stringify(r).toLowerCase().includes(q));
+                }
+                if(fs){
+                    list = list.filter(r => (r.review?.status||'pending') === fs);
+                }
+                if(fc){
+                    list = list.filter(r => (r.taskSnapshot?.category||'') === fc);
+                }
+                if(sortKey){
+                    list.sort((a,b)=> cmp(getSortValReport(a,sortKey), getSortValReport(b,sortKey)));
+                }
+                renderReports(list);
+                document.getElementById('hint').innerText = `Reports: ${list.length}`;
+            }
+        }
+
+        function getSortValTask(t, key){
+            if(key === 'deadline') return String(t.deadline||'');
+            if(key === 'start') return String(t.start||'');
+            if(key === 'percent') return Number(t.percent||0);
+            return '';
+        }
+        function getSortValEvent(e, key){
+            if(key === 'start') return String(e.start||'');
+            if(key === 'deadline') return String(e.end||'');
+            return '';
+        }
+        function getSortValReport(r, key){
+            if(key === 'createdAt') return String(r.createdAt||'');
+            return '';
+        }
+        function cmp(a,b){
+            if(typeof a === 'number' && typeof b === 'number') return a-b;
+            return String(a).localeCompare(String(b));
+        }
+
+        // --- MODAL ---
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('open');
+        }
+
+        function openEditTask(task) {
+            activeTab = 'tasks';
+            currentEditId = task.id;
+            document.getElementById('panelTitle').innerText = `EDIT TASK: ${task.id}`;
+            const container = document.getElementById('formContainer');
+            const btnRow = document.getElementById('btnRow');
+            btnRow.innerHTML = `
+                <button class="btn btn-cancel" onclick="closeModal()">CANCEL</button>
+                <button class="btn btn-save" onclick="saveChanges()">COMMIT CHANGES</button>
+            `;
+
+            let catOptions = CATEGORIES.map(c => `<option value="${escapeHtml(c)}" ${task.category===c?'selected':''}>${escapeHtml(c)}</option>`).join('');
+
+            container.innerHTML = `
+                <div class="input-group"><label>ID</label><input type="text" id="e_id" value="${escapeAttr(task.id)}"></div>
+                <div class="input-group"><label>TITLE</label><input type="text" id="e_title" value="${escapeAttr(task.title)}"></div>
+
+                <div class="input-group"><label>CATEGORY</label><select id="e_cat">${catOptions}</select></div>
+                <div class="input-group"><label>PRIORITY</label><input type="text" id="e_prio" value="${escapeAttr(task.priority||'')}"></div>
+
+                <div class="input-group"><label>OWNER</label><input type="text" id="e_owner" value="${escapeAttr(task.owner||'')}"></div>
+                <div class="input-group"><label>DEADLINE</label><input type="date" id="e_dead" value="${escapeAttr(task.deadline||'')}"></div>
+
+                <div class="input-group"><label>START DATE</label><input type="date" id="e_start" value="${escapeAttr(task.start||'')}"></div>
+                <div class="input-group"><label>END DATE</label><input type="date" id="e_end" value="${escapeAttr(task.end||'')}"></div>
+
+                <div class="input-group chk-group"><input type="checkbox" id="e_run" ${task.isRunning?'checked':''}><label>IS RUNNING</label></div>
+                <div class="input-group chk-group"><input type="checkbox" id="e_pause" ${task.isPaused?'checked':''}><label>IS PAUSED</label></div>
+
+                <div class="full"><label>PROGRESS (%)</label><input type="number" id="e_prog" value="${Number(task.percent||0)}" min="0" max="100"></div>
+                <div class="full"><label>DESCRIPTION</label><textarea id="e_desc">${escapeHtml(task.summary || '')}</textarea></div>
+
+                <div class="full"><label>RELATED DOCS</label><input type="text" id="e_docs" value="${escapeAttr((task.relatedDocs||[]).join(','))}"></div>
+                <div class="full"><label>RELATED LINKS</label><input type="text" id="e_links" value="${escapeAttr((task.relatedLinks||[]).join(','))}"></div>
+            `;
+
+            document.getElementById('modalOverlay').classList.add('open');
+        }
+
+        function openEditEvent(evt) {
+            activeTab = 'calendar';
+            currentEditId = evt.id;
+            document.getElementById('panelTitle').innerText = `EDIT EVENT: ${evt.id}`;
+            const container = document.getElementById('formContainer');
+            const btnRow = document.getElementById('btnRow');
+            btnRow.innerHTML = `
+                <button class="btn btn-cancel" onclick="closeModal()">CANCEL</button>
+                <button class="btn btn-save" onclick="saveChanges()">COMMIT CHANGES</button>
+            `;
+
+            let catOptions = CATEGORIES.map(c => `<option value="${escapeHtml(c)}" ${evt.category===c?'selected':''}>${escapeHtml(c)}</option>`).join('');
+
+            container.innerHTML = `
+                <div class="input-group"><label>ID</label><input type="text" id="e_id" value="${escapeAttr(evt.id)}"></div>
+                <div class="input-group"><label>TITLE</label><input type="text" id="e_title" value="${escapeAttr(evt.title||'')}"></div>
+
+                <div class="input-group"><label>CATEGORY</label><select id="e_cat">${catOptions}</select></div>
+                <div class="input-group"><label>TIME (TEXT)</label><input type="text" id="e_time" value="${escapeAttr(evt.time||'')}"></div>
+
+                <div class="input-group"><label>START DATE</label><input type="date" id="e_start" value="${escapeAttr(evt.start||'')}"></div>
+                <div class="input-group"><label>END DATE</label><input type="date" id="e_end" value="${escapeAttr(evt.end||'')}"></div>
+
+                <div class="full"><label>DESCRIPTION</label><textarea id="e_desc">${escapeHtml(evt.desc || '')}</textarea></div>
+                <div class="full"><label>RELATED DOCS</label><input type="text" id="e_docs" value="${escapeAttr((evt.relatedDocs||[]).join(','))}"></div>
+            `;
+
+            document.getElementById('modalOverlay').classList.add('open');
+        }
+
+        function openReviewReport(rep){
+            activeTab = 'reports';
+            currentEditId = rep.id;
+            document.getElementById('panelTitle').innerText = `REVIEW REPORT: ${rep.id}`;
+            const container = document.getElementById('formContainer');
+            const btnRow = document.getElementById('btnRow');
+
+            const st = rep.review?.status || 'pending';
+            const note = rep.review?.note || '';
+
+            container.innerHTML = `
+                <div class="full"><label>TASK</label><input type="text" value="${escapeAttr(rep.taskSnapshot?.title || rep.taskId || '')}" readonly></div>
+                <div class="input-group"><label>REPORTER</label><input type="text" value="${escapeAttr(rep.reporterEmail||'')}" readonly></div>
+                <div class="input-group"><label>SELF PROGRESS</label><input type="text" value="${Number(rep.selfProgress||0)}%" readonly></div>
+                <div class="full"><label>DESCRIPTION</label><textarea readonly>${escapeHtml(rep.description||'')}</textarea></div>
+                <div class="full"><label>ATTACHMENTS</label>
+                    <div style="font-size:12px; color:var(--dim); line-height:1.6;">${renderAttachments(rep.attachments||[])}</div>
+                </div>
+                <div class="input-group"><label>STATUS</label>
+                    <select id="r_status">
+                        <option value="pending" ${st==='pending'?'selected':''}>pending</option>
+                        <option value="approved" ${st==='approved'?'selected':''}>approved</option>
+                        <option value="rejected" ${st==='rejected'?'selected':''}>rejected</option>
+                    </select>
+                </div>
+                <div class="full"><label>REVIEW NOTE</label><textarea id="r_note">${escapeHtml(note)}</textarea></div>
+            `;
+
+            btnRow.innerHTML = `
+                <button class="btn btn-cancel" onclick="closeModal()">CANCEL</button>
+                <button class="btn btn-save" onclick="saveReview()">SAVE REVIEW</button>
+                <button class="btn btn-danger" onclick="deleteReport()">DELETE</button>
+            `;
+
+            document.getElementById('modalOverlay').classList.add('open');
+        }
+
+        function renderAttachments(atts){
+            if(!atts.length) return '—';
+            return atts.map(a=>{
+                const url = a.url || '';
+                const name = a.name || 'file';
+                if(url) return `<div>• <a href="${escapeAttr(url)}" target="_blank" style="color:var(--active); text-decoration:none;">${escapeHtml(name)}</a></div>`;
+                return `<div>• ${escapeHtml(name)}</div>`;
+            }).join('');
+        }
+
+        async function saveReview(){
+            const status = document.getElementById('r_status').value;
+            const note = document.getElementById('r_note').value;
+            const payload = { action: 'review_report', reportId: currentEditId, status, note };
+            const btn = document.querySelector('.btn-save');
+            btn.innerText = 'SAVING...';
+            btn.disabled = true;
+            try{
+                const res = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+                const json = await res.json();
+                if(!res.ok || json.status !== 'success') throw new Error(json.message || 'SAVE_FAILED');
+                await fetchAll();
+                closeModal();
+            }catch(e){
+                alert('ERROR: ' + e);
+            }finally{
+                btn.innerText = 'SAVE REVIEW';
+                btn.disabled = false;
+            }
+        }
+
+        async function deleteReport(){
+            if(!confirm('DELETE THIS REPORT?')) return;
+            const payload = { action: 'delete_report', reportId: currentEditId };
+            const btn = document.querySelector('.btn-danger');
+            btn.innerText = 'DELETING...';
+            btn.disabled = true;
+            try{
+                const res = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+                const json = await res.json();
+                if(!res.ok || json.status !== 'success') throw new Error(json.message || 'DELETE_FAILED');
+                await fetchAll();
+                closeModal();
+            }catch(e){
+                alert('ERROR: ' + e);
+            }finally{
+                btn.innerText = 'DELETE';
+                btn.disabled = false;
+            }
+        }
+
+        async function saveChanges() {
+            // Update local object
+            if(activeTab === 'tasks') {
+                let t = (cdaProject.tasks||[]).find(x => x.id === currentEditId);
+                if(t) {
+                    t.id = document.getElementById('e_id').value;
+                    t.title = document.getElementById('e_title').value;
+                    t.category = document.getElementById('e_cat').value;
+                    t.priority = document.getElementById('e_prio').value;
+                    t.owner = document.getElementById('e_owner').value;
+                    t.deadline = document.getElementById('e_dead').value;
+                    t.start = document.getElementById('e_start').value;
+                    t.end = document.getElementById('e_end').value;
+                    t.isRunning = document.getElementById('e_run').checked;
+                    t.isPaused = document.getElementById('e_pause').checked;
+                    t.percent = Math.max(0, Math.min(100, parseInt(document.getElementById('e_prog').value || '0', 10)));
+                    t.summary = document.getElementById('e_desc').value;
+                    t.relatedDocs = document.getElementById('e_docs').value.split(',').map(s=>s.trim()).filter(Boolean);
+                    t.relatedLinks = document.getElementById('e_links').value.split(',').map(s=>s.trim()).filter(Boolean);
+                }
+            } else {
+                let e = (cdaProject.calendar||[]).find(x => x.id === currentEditId);
+                if(e) {
+                    e.id = document.getElementById('e_id').value;
+                    e.title = document.getElementById('e_title').value;
+                    e.category = document.getElementById('e_cat').value;
+                    e.time = document.getElementById('e_time').value;
+                    e.start = document.getElementById('e_start').value;
+                    e.end = document.getElementById('e_end').value;
+                    e.desc = document.getElementById('e_desc').value;
+                    e.relatedDocs = document.getElementById('e_docs').value.split(',').map(s=>s.trim()).filter(Boolean);
+                }
+            }
+
+            const payload = { action: 'update_cda_project', data: cdaProject };
+            const btn = document.querySelector('.btn-save');
+            btn.innerText = 'SAVING...';
+            btn.disabled = true;
+
+            try{
+                const res = await fetch(API_URL, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+                const json = await res.json();
+                if(!res.ok || json.status !== 'success') throw new Error(json.message || 'SAVE_FAILED');
+                await fetchAll();
+                closeModal();
+            }catch(e){
+                alert('ERROR SAVING: ' + e);
+            }finally{
+                btn.innerText = 'COMMIT CHANGES';
+                btn.disabled = false;
+            }
+        }
+
+        function escapeHtml(str){
+            return String(str || '')
+              .replaceAll('&','&amp;')
+              .replaceAll('<','&lt;')
+              .replaceAll('>','&gt;')
+              .replaceAll('"','&quot;')
+              .replaceAll("'",'&#039;');
+        }
+        function escapeAttr(str){
+            return escapeHtml(str).replaceAll('\n',' ');
+        }
+
+    </script>
+</body>
+</html>
